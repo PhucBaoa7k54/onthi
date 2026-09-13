@@ -1789,6 +1789,7 @@ function validateAnswer(userPick) {
         if(userPick !== -1) btns[userPick].classList.add('wrong');
         btns[qData.correct].classList.add('correct');
         errorList.push(qData); // Lưu vào danh sách sai để hỏi lại
+	document.getElementById('wrong-count').innerText = errorList.length;
     }
 
     document.getElementById('exp-area').innerHTML = `<b>Giải thích:</b> ${qData.exp}`;
@@ -1831,6 +1832,7 @@ function restartWithErrors() {
     currentIndex = 0;
     score = 0;
     document.getElementById('score-count').innerText = "0";
+    document.getElementById('wrong-count').innerText = "0";
     document.getElementById('result-screen').classList.add('hidden');
     document.getElementById('quiz-screen').classList.remove('hidden');
     renderQuestion();
