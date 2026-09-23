@@ -1,1842 +1,1070 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="h-full bg-slate-100">
 <head>
     <meta charset="UTF-8">
-    <title>Hệ Thống Ôn Thi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Trích Xuất AI & Thi Trắc Nghiệm Tự Động</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#0284c7',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Mammoth.js (Word .docx parsing) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- PDF.js (PDF parsing) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         :root { --primary: #003366; --accent: #c0392b; --bg: #fdfdfd; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #ececec; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        #quiz-container { background: white; width: 100%; max-width: 850px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); overflow: hidden; }
-        .header { background: var(--primary); color: white; padding: 20px; text-align: center; }
-        .info-bar { display: flex; justify-content: space-between; padding: 10px 25px; background: #f8f9fa; border-bottom: 2px solid #ddd; font-weight: bold; }
-        .timer-box { color: var(--accent); font-size: 1.2rem; }
-        .content { padding: 30px; }
-        .question-box { font-size: 1.25rem; font-weight: bold; color: #222; margin-bottom: 25px; line-height: 1.5; }
-        .option { display: block; width: 100%; padding: 15px; margin-bottom: 12px; border: 2px solid #eee; border-radius: 8px; text-align: left; cursor: pointer; font-size: 1rem; transition: all 0.2s; background: #fff; }
-        .option:hover { background: #f0f7ff; border-color: #3498db; }
-        .correct { background: #d4edda !important; border-color: #28a745 !important; color: #155724; font-weight: bold; }
-        .wrong { background: #f8d7da !important; border-color: #dc3545 !important; color: #721c24; }
-        .explanation { margin-top: 20px; padding: 20px; background: #fff3cd; border-left: 6px solid #ffc107; line-height: 1.6; }
-        .btn-action { background: var(--primary); color: white; border: none; padding: 12px 30px; border-radius: 6px; cursor: pointer; font-size: 1rem; }
-        .hidden { display: none; }
+        body { font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; }
+        
+        /* CSS cho Web Trắc nghiệm */
+        #quiz-container { background: white; width: 100%; max-width: 900px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.12); overflow: hidden; }
+        .quiz-header { background: var(--primary); color: white; padding: 22px; text-align: center; }
+        .info-bar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 24px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600; font-size: 0.875rem; }
+        .timer-box { color: var(--accent); }
+        .quiz-content { padding: 28px; }
+        .question-box { font-size: 1.15rem; font-weight: 700; color: #1e293b; margin-bottom: 20px; line-height: 1.5; }
+        .option-btn { display: block; width: 100%; padding: 14px 18px; margin-bottom: 12px; border: 2px solid #e2e8f0; border-radius: 10px; text-align: left; cursor: pointer; font-size: 0.95rem; font-weight: 500; transition: all 0.2s; background: #fff; color: #334155; }
+        .option-btn:hover { background: #f0f7ff; border-color: #38bdf8; color: #0284c7; }
+        .correct { background: #dcfce7 !important; border-color: #22c55e !important; color: #15803d !important; font-weight: 700; }
+        .wrong { background: #fee2e2 !important; border-color: #ef4444 !important; color: #b91c1c !important; }
+        .explanation { margin-top: 20px; padding: 18px; background: #fef3c7; border-left: 6px solid #f59e0b; line-height: 1.6; border-radius: 0 10px 10px 0; color: #78350f; font-size: 0.9rem; }
+        .btn-action { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600; transition: all 0.2s; display: inline-flex; items-center: center; gap: 6px; }
+        .btn-action:hover { opacity: 0.92; transform: translateY(-1px); }
+        .drag-active { border-color: #0284c7 !important; background-color: #f0f7ff !important; }
+        
+        /* Custom Radio Card */
+        .radio-card input[type="radio"]:checked + div {
+            border-color: #0284c7;
+            background-color: #f0f9ff;
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+        }
+        .radio-card input[type="radio"]:checked + div .radio-dot {
+            border-color: #0284c7;
+            background-color: #0284c7;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
 </head>
-<body>
+<body class="h-full min-h-screen bg-slate-100 flex flex-col text-slate-800 antialiased">
 
-<div id="quiz-container">
-    <div class="header"><h1>NGÂN HÀNG ÔN THI</h1></div>
+    <!-- NAVIGATION HEADER -->
+    <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-gradient-to-tr from-sky-500 to-indigo-600 text-white rounded-xl shadow-inner">
+                    <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-white text-base sm:text-lg flex items-center gap-2">
+                        AI Quiz System
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Trích xuất câu hỏi tự động & Làm bài kiểm tra</p>
+                </div>
+            </div>
 
-    <div id="start-screen" class="content" style="text-align: center;">
-        <h2>Chào bạn!</h2>
-        <p>Hệ thống đã sẵn sàng.</p>
-        <p><i>Lưu ý: Các câu làm sai sẽ được hỏi lại cho đến khi bạn thuộc.</i></p>
-        <button class="btn-action" onclick="startApp()">BẮT ĐẦU ÔN TẬP</button>
-    </div>
-
-    <div id="quiz-screen" class="hidden">
-        <div class="info-bar">
-            <span>Tiến độ: <span id="q-current">1</span>/<span id="q-total">300</span></span>
-            <span class="timer-box">Thời gian: <span id="time-left">30</span>s</span>
-            <span>
-		Đúng: <span id="score-count" style="color: #28a745;">0</span> | 
-       		 Sai: <span id="wrong-count" style="color: #dc3545;">0</span>
-    </span>
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="switchStep(1)" id="tabBtnStep1" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 text-white flex items-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-file-import"></i> <span class="hidden sm:inline">1. Trích Xuất AI</span>
+                </button>
+                <button onclick="goToExamConfig()" id="tabBtnStep2" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-graduation-cap"></i> <span class="hidden sm:inline">2. Web Làm Bài</span> 
+                    <span id="bankBadge" class="ml-1 bg-emerald-500 text-white px-1.5 py-0.2 rounded-full text-[10px]">0 câu</span>
+                </button>
+                <button onclick="openApiKeyModal()" class="p-2 text-amber-400 hover:bg-slate-800 rounded-lg transition-colors" title="Cấu hình API Key">
+                    <i class="fa-solid fa-key"></i>
+                </button>
+            </div>
         </div>
-        <div class="content">
-            <div id="question-text" class="question-box"></div>
-            <div id="options-list"></div>
-            <div id="exp-area" class="explanation hidden"></div>
-            <div style="text-align: right; margin-top: 20px;">
-                <button id="btn-next" class="btn-action hidden" onclick="handleNext()">TIẾP THEO</button>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col">
+
+        <!-- ======================================================================= -->
+        <!-- GIAI ĐOẠN 1: BỘ TRÍCH XUẤT CÂU HỎI BẰNG AI & CHỈNH SỬA (STEP 1) -->
+        <!-- ======================================================================= -->
+        <div id="step-1" class="flex flex-col gap-6">
+
+            <!-- API Key Warning Banner -->
+            <div id="keyWarning" class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-600 text-xl"></i>
+                    <div>
+                        <p class="text-xs font-semibold text-amber-800">Chưa thiết lập Gemini API Key</p>
+                        <p class="text-[11px] text-amber-700">Vui lòng nhập API Key để dùng AI tự động trích xuất ngân hàng câu hỏi.</p>
+                    </div>
+                </div>
+                <button onclick="openApiKeyModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition-colors">
+                    Nhập Key
+                </button>
+            </div>
+
+            <!-- Upload & AI Controls Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-600 text-xs flex items-center justify-center font-bold">1</span>
+                        Tải Tài Liệu & Cấu Hình Số Lượng Câu Hỏi
+                    </h2>
+                    <button onclick="loadDefaultSample()" class="text-xs text-sky-600 hover:underline font-medium">
+                        <i class="fa-solid fa-flask mr-1"></i> Dùng dữ liệu câu hỏi mẫu
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                    <!-- Dropzone -->
+                    <div id="dropzone" class="border-2 border-dashed border-slate-300 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer hover:border-sky-500 hover:bg-sky-50/50 transition-all group relative min-h-[160px]">
+                        <input type="file" id="fileInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept=".txt,.json,.docx,.pdf">
+                        <div class="w-10 h-10 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-700">Kéo thả file (.txt, .docx, .pdf, .json) vào đây</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Hoặc nhấp để chọn file từ máy tính</p>
+                        <div id="fileInfo" class="hidden mt-2 p-1.5 bg-sky-50 text-sky-700 text-xs rounded border border-sky-200 flex items-center gap-2">
+                            <i class="fa-solid fa-file-lines"></i>
+                            <span id="fileName" class="font-medium">filename.pdf</span>
+                        </div>
+                    </div>
+
+                    <!-- Direct Text Input Area -->
+                    <div class="flex flex-col">
+                        <textarea id="rawTextArea" rows="6" placeholder="Hoặc dán nội dung văn bản, bài giảng, đề thi vào đây..." 
+                        class="w-full h-full min-h-[160px] p-3 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-sky-500 outline-none resize-y"></textarea>
+                    </div>
+                </div>
+
+                <!-- Number of Questions Target Config -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <label class="text-xs font-bold text-slate-700 whitespace-nowrap flex items-center gap-1.5">
+                            <i class="fa-solid fa-list-check text-sky-600"></i> Số lượng câu cần sinh vào Ngân Hàng:
+                        </label>
+                        <select id="selectNumQuestions" class="bg-white border border-slate-300 text-xs font-bold text-slate-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-sky-500 shadow-sm">
+                            <option value="80" selected>80 câu hỏi</option>
+                            <option value="120">120 câu hỏi</option>
+                            <option value="150">150 câu hỏi</option>
+                            <option value="200">200 câu hỏi</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="parseRegExFallback()" class="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition-all">
+                            <i class="fa-solid fa-filter mr-1"></i> Bóc tách Regex
+                        </button>
+                        <button id="btnAiExtract" onclick="extractQuestionsWithAI()" class="px-5 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white rounded-lg text-xs font-bold shadow-md flex items-center gap-2 transition-all">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Bắt đầu trích xuất bằng AI
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading Spinner State -->
+            <div id="aiLoading" class="hidden bg-white rounded-2xl p-8 border border-slate-200 shadow-sm text-center">
+                <div class="w-12 h-12 border-4 border-sky-200 border-t-sky-600 rounded-full animate-spin mx-auto mb-3"></div>
+                <h3 class="text-sm font-bold text-slate-800">Gemini AI Đang Phân Tích & Sinh Bộ Câu Hỏi...</h3>
+                <p class="text-xs text-slate-500 mt-1">Hệ thống đang đọc hiểu tài liệu để tạo đúng <span id="targetQCount" class="font-bold text-sky-600">80</span> câu hỏi. Quá trình này có thể mất 15-30 giây.</p>
+            </div>
+
+            <!-- Question Bank Preview & Editor Area -->
+            <div id="previewContainer" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 sm:p-6 flex flex-col min-h-[300px]">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 flex-wrap gap-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 flex items-center gap-2">
+                            <span class="w-6 h-6 rounded-full bg-sky-100 text-sky-600 text-xs flex items-center justify-center font-bold">2</span>
+                            Danh Sách Câu Hỏi Trích Xuất Khả Dụng
+                        </h2>
+                        <p class="text-xs text-slate-500 mt-0.5">Hiện tại có: <b id="extractedCount" class="text-sky-600">0</b> câu hỏi trong bộ nhớ</p>
+                    </div>
+
+                    <!-- Highlight Launch Exam Button -->
+                    <button id="btnLaunchQuiz" onclick="goToExamConfig()" disabled class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-lg flex items-center gap-2 transition-all">
+                        <i class="fa-solid fa-circle-play text-sm"></i> TẠO BÀI KIỂM TRA & BẮT ĐẦU &rarr;
+                    </button>
+                </div>
+
+                <!-- Scrollable List of Questions Cards -->
+                <div id="questionsEditor" class="space-y-4 max-h-[550px] overflow-y-auto pr-1 flex-1">
+                    <div id="emptyListNotice" class="py-12 text-center text-slate-400">
+                        <i class="fa-solid fa-folder-open text-4xl mb-2 text-slate-300"></i>
+                        <p class="text-xs">Chưa có câu hỏi nào. Hãy tải file hoặc dán văn bản rồi bấm nút trích xuất bằng AI.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ======================================================================= -->
+        <!-- GIAI ĐOẠN 2: MÀN HÌNH CHỌN CẤU HÌNH BÀI THI (STEP 2) -->
+        <!-- ======================================================================= -->
+        <div id="step-2" class="hidden flex-1 flex justify-center items-center py-4">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-2xl w-full p-6 sm:p-8">
+                <div class="text-center mb-6 pb-4 border-b border-slate-100">
+                    <div class="w-12 h-12 bg-sky-100 text-sky-600 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl font-bold">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-900">Cấu Hình Thông Số Bài Thi Trắc Nghiệm</h2>
+                    <p class="text-xs text-slate-500 mt-1">Vui lòng chọn đầy đủ các thông số bắt buộc <span class="text-rose-500 font-bold">(*)</span> để bắt đầu làm bài thi.</p>
+                </div>
+
+                <form id="configForm" onsubmit="event.preventDefault(); validateAndStartExam();" class="space-y-6">
+                    
+                    <!-- 1. Thời gian trả lời từng câu -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 mb-2 flex items-center gap-1">
+                            <span>1. Thời gian trả lời mỗi câu hỏi</span> <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="timePerQuestion" value="30" class="sr-only">
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">30 Giây</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="timePerQuestion" value="45" class="sr-only" checked>
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">45 Giây</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="timePerQuestion" value="60" class="sr-only">
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">60 Giây</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 2. Chọn số câu hỏi làm bài -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 mb-2 flex items-center gap-1">
+                            <span>2. Chọn số lượng câu hỏi làm bài</span> <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="numExamQuestions" value="40" class="sr-only" checked>
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">40 Câu</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="numExamQuestions" value="50" class="sr-only">
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">50 Câu</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="numExamQuestions" value="60" class="sr-only">
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">60 Câu</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="numExamQuestions" value="ALL" class="sr-only">
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">Toàn Bộ</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 3. Thời gian làm bài tổng thể -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-800 mb-2 flex items-center gap-1">
+                            <span>3. Chọn thời gian làm bài tổng thể</span> <span class="text-rose-500 font-bold">*</span>
+                        </label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="totalExamTime" value="30" class="sr-only">
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">30 Phút</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="totalExamTime" value="45" class="sr-only" checked>
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">45 Phút</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="totalExamTime" value="60" class="sr-only">
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">60 Phút</span>
+                                </div>
+                            </label>
+
+                            <label class="radio-card cursor-pointer">
+                                <input type="radio" name="totalExamTime" value="90" class="sr-only">
+                                <div class="border-2 border-slate-200 rounded-xl p-3 text-center transition-all flex items-center justify-center gap-2">
+                                    <div class="w-3.5 h-3.5 rounded-full border border-slate-300 radio-dot"></div>
+                                    <span class="text-xs font-bold text-slate-700">90 Phút</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                        <button type="button" onclick="switchStep(1)" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-all">
+                            &larr; Quản Lý File
+                        </button>
+                        <button type="submit" class="px-8 py-3 bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-700 hover:to-emerald-700 text-white rounded-xl text-xs font-bold shadow-lg transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-play"></i> BẮT ĐẦU LÀM BÀI THI
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+
+        <!-- ======================================================================= -->
+        <!-- GIAI ĐOẠN 3 & 4: MÀN HÌNH LÀM BÀI THI & KẾT QUẢ (STEP 3 & 4) -->
+        <!-- ======================================================================= -->
+        <div id="step-3" class="hidden flex-1 flex justify-center items-start pt-2">
+            <div id="quiz-container">
+                <div class="quiz-header">
+                    <h1 class="text-xl font-bold tracking-wide">HỆ THỐNG ÔN THI TRẮC NGHIỆM</h1>
+                    <p class="text-xs opacity-80 mt-1">Trạng thái: Đã sẵn sàng bộ đề từ trích xuất AI</p>
+                </div>
+
+                <!-- Exam Screen -->
+                <div id="quiz-screen">
+                    <div class="info-bar">
+                        <span>Tiến độ: <span id="q-current" class="text-sky-600">1</span>/<span id="q-total">40</span></span>
+                        <span class="timer-box"><i class="fa-regular fa-clock mr-1"></i>Câu: <span id="time-left">45</span>s</span>
+                        <span class="text-indigo-600"><i class="fa-solid fa-hourglass-half mr-1"></i>Tổng: <span id="total-time-left">45:00</span></span>
+                        <span>
+                            Đúng: <span id="score-count" style="color: #28a745;">0</span> | 
+                            Sai: <span id="wrong-count" style="color: #dc3545;">0</span>
+                        </span>
+                    </div>
+                    <div class="quiz-content">
+                        <div id="question-text" class="question-box"></div>
+                        <div id="options-list"></div>
+                        <div id="exp-area" class="explanation hidden"></div>
+                        <div style="text-align: right; margin-top: 20px;">
+                            <button id="btn-next" class="btn-action hidden" onclick="handleNext()">
+                                TIẾP THEO &rarr;
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result Screen (STEP 4) -->
+                <div id="result-screen" class="hidden" style="text-align: center; padding: 40px 20px;">
+                    <h2 class="text-xl font-bold text-slate-800">KẾT THÚC BÀI KIỂM TRA</h2>
+                    <h1 id="final-stats" class="text-4xl font-black text-sky-700 my-4">0/40</h1>
+                    <div id="fail-info" style="color: red; margin-bottom: 20px;" class="text-sm font-medium"></div>
+                    <div class="flex flex-wrap justify-center gap-2">
+                        <button class="btn-action" onclick="restartWithErrors()">
+                            <i class="fa-solid fa-rotate-right"></i> ÔN LẠI CÂU SAI
+                        </button>
+                        <button class="btn-action" style="background:#0284c7" onclick="goToExamConfig()">
+                            <i class="fa-solid fa-sliders"></i> TẠO BÀI THI MỚI
+                        </button>
+                        <button class="btn-action" style="background:#64748b" onclick="switchStep(1)">
+                            <i class="fa-solid fa-file-arrow-up"></i> ĐỔI FILE TÀI LIỆU
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Configuration API Key -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-key text-amber-500"></i> Cấu hình Gemini API Key
+                </h3>
+                <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                Nhập API Key để kích hoạt tính năng Gemini 2.5 Flash đọc hiểu file (.pdf, .docx, .txt) và sinh ra ngân hàng câu hỏi.
+            </p>
+            <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full border border-slate-300 rounded-lg p-2.5 text-xs text-slate-800 focus:ring-2 focus:ring-sky-500 outline-none mb-4">
+            <div class="flex items-center justify-between">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-xs text-sky-600 hover:underline">
+                    Lấy Key miễn phí &rarr;
+                </a>
+                <button onclick="saveApiKey()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold">
+                    Lưu Key
+                </button>
             </div>
         </div>
     </div>
 
-    <div id="result-screen" class="hidden" style="text-align: center; padding: 50px;">
-        <h2>KẾT THÚC VÒNG ÔN TẬP</h2>
-        <h1 id="final-stats">0/300</h1>
-        <div id="fail-info" style="color: red; margin-bottom: 20px;"></div>
-        <button class="btn-action" onclick="restartWithErrors()">ÔN LẠI CÂU SAI</button>
-        <button class="btn-action" style="background:#666" onclick="location.reload()">LÀM MỚI TOÀN BỘ</button>
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-xs">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toastMessage">Thông báo!</span>
     </div>
-</div>
 
-<script>
-// ===========================================================================
-// === PHẦN 1: DỮ LIỆU CÂU HỎI (Bạn có thể thêm tiếp vào mảng này) ===
-// ===========================================================================
-// ==========================================================================
-// NGÂN HÀNG DỮ LIỆU========================================================
-// ==========================================================================
+    <!-- SYSTEM CORE JAVASCRIPT LOGIC -->
+    <script>
+        // Global Data Store
+        let questionBank = [];
+        let geminiApiKey = localStorage.getItem('GEMINI_API_KEY') || '';
 
-const questionBank = [
-      {
-        "q": "Phần cứng máy tính là gì?",
-        "options": [
-            "Các bộ phận cụ thể của máy tính về mặt vật lý như màn hình, chuột, bàn phím,...",
-            "Cấu tạo của phần mềm về mặt logic",
-            "Cấu tạo của phần mềm về mặt vật lý",
-            "Cả 3 phương án đều sai"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Phần cứng là các thiết bị, linh kiện có thể chạm vào được về mặt vật lý[cite: 3]."
-    },
-    {
-        "q": "Kể tên các loại bộ nhớ trong?",
-        "options": [
-            "Bộ nhớ truy cập ngẫu nhiên (RAM)",
-            "Bộ nhớ chỉ đọc (ROM)",
-            "Đĩa cứng (Hard disk)",
-            "Bộ nhớ truy cập ngẫu nhiên (RAM) và bộ nhớ chỉ đọc (ROM)"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Bộ nhớ trong của máy tính bao gồm cả RAM và ROM[cite: 3]."
-    },
-    {
-        "q": "Các thiết bị: màn hình, loa, máy in, thuộc khối chức năng nào?",
-        "options": [
-            "Thiết bị nhập",
-            "Thiết bị xuất",
-            "Khối xử lý",
-            "Các thiết bị lưu trữ"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Đây đều là các thiết bị dùng để xuất thông tin ra bên ngoài cho người dùng[cite: 3]."
-    },
-    {
-        "q": "Phát biểu nào sau đây là đúng?",
-        "options": [
-            "Phần mềm mã nguồn mở gây hại cho người sử dụng",
-            "Phần mềm mã nguồn mở không có bảo hành",
-            "Phần mềm mã nguồn mở không cho phép phân phối lại",
-            "Phần mềm mã nguồn mở không có bản quyền"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Theo dữ liệu ôn tập, phần mềm mã nguồn mở thường được hiểu là phần mềm miễn phí chia sẻ mã nguồn[cite: 3]."
-    },
-    {
-        "q": "Các mật khẩu nào sau đây là khó phá nhất đối với hacker?",
-        "options": [
-            "password",
-            "123456",
-            "p@ssWord123",
-            "h3llo"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Mật khẩu kết hợp chữ hoa, chữ thường, số và ký tự đặc biệt có độ bảo mật cao nhất[cite: 3]."
-    },
-    {
-        "q": "Lựa chọn nào cho thấy máy tính xách tay có lợi thế hơn so với máy tính để bàn?",
-        "options": [
-            "Máy tính xách tay có thể mang đi bất kì đâu",
-            "Một máy tính xách tay có thể tái sử dụng các thành phần của nó có thể được sử dụng cho máy tính xách tay khác",
-            "Sửa máy tính xách tay ít tốn kém hơn",
-            "Máy tính xách tay thường có kích thước lớn hơn máy tính để bàn"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Tính di động là ưu điểm lớn nhất của máy tính xách tay (Laptop)[cite: 3]."
-    },
-    {
-        "q": "Các thiết bị nào có thể thiếu trong một bộ máy tính?",
-        "options": [
-            "Bộ nguồn",
-            "Bộ nhớ RAM",
-            "Màn hình",
-            "ổ đĩa mềm"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Ổ đĩa mềm là công nghệ cũ và hiện nay không còn bắt buộc phải có[cite: 3]."
-    },
-    {
-        "q": "Hãy chọn nhóm có thiết bị không cùng nhóm với những thiết bị còn lại?",
-        "options": [
-            "Màn hình, máy in, bàn phím",
-            "Màn hình, máy in, loa",
-            "Máy in, bàn phím, chuột",
-            "Máy in, máy scan, usb"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Bàn phím là thiết bị nhập, trong khi màn hình và máy in là thiết bị xuất[cite: 3]."
-    },
-    {
-        "q": "Thiết bị nào quyết định khả năng làm việc của máy tính?",
-        "options": [
-            "Chuột",
-            "CPU",
-            "Bàn phím",
-            "Máy in"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Bộ vi xử lý trung tâm (CPU) là bộ não quyết định tốc độ và hiệu suất của máy[cite: 3]."
-    },
-    {
-        "q": "Đâu là ví dụ của mật khẩu tốt?",
-        "options": [
-            "Chọn một mật khẩu có ít hơn 6 ký tự",
-            "Mật khẩu phải giống lý lịch người sử dụng (ngày tháng năm sinh)",
-            "Mật khẩu nhiều hơn 7 ký tự gồm cả chữ hoa, số, ký tự đặc biệt",
-            "Mật khẩu chỉ gồm chữ hoặc số"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Mật khẩu mạnh cần đủ dài và phức tạp để chống lại các cuộc tấn công dò mật khẩu[cite: 3]."
-    },
-    {
-        "q": "Trong máy tính, PC là chữ viết tắt của từ nào?",
-        "options": [
-            "Personal Computer",
-            "Performance Computer",
-            "Personnal Connector",
-            "Printing Computer"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. PC là viết tắt của máy tính cá nhân (Personal Computer)[cite: 3]."
-    },
-    {
-        "q": "Cấu trúc chung của máy tính gồm có những khối chức năng nào?",
-        "options": [
-            "Bộ xử lý trung tâm, bộ nhớ",
-            "Bộ nhớ, thiết bị nhập/xuất, màn hình",
-            "Bộ xử lý trung tâm, bộ nhớ, thiết bị nhập",
-            "Bộ xử lý trung tâm, bộ nhớ, thiết bị nhập/xuất"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Kiến trúc máy tính tiêu chuẩn bao gồm CPU, bộ nhớ và các cổng Nhập/Xuất[cite: 3]."
-    },
-    {
-        "q": "Tốc độ của máy tính phụ thuộc vào các yếu tố nào sau đây?",
-        "options": [
-            "Tốc độ của bộ vi xử lý. Tốc độ, dung lượng và không gian trống của ổ cứng",
-            "Tất cả các đáp án đều đúng",
-            "Dung lượng bộ nhớ truy cập ngẫu nhiên RAM",
-            "Hệ điều hành và quá trình tiến hành gom các tệp tin đã bị phân mảnh theo định kỳ"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Hiệu năng tổng thể của máy tính là sự kết hợp đồng bộ của tất cả các yếu tố phần cứng và phần mềm trên[cite: 3]."
-    },
-    {
-        "q": "Cách nào để đề phòng khi giao dịch trực tuyến?",
-        "options": [
-            "Không để lộ hồ sơ cá nhân",
-            "Cảnh giác với thư giả mạo",
-            "Tất cả các đáp án đều đúng",
-            "Đặt mật khẩu nhiều hơn 7 ký tự, gồm cả chữ hoa, số, ký tự đặc biệt"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Áp dụng tất cả các biện pháp bảo mật trên giúp giao dịch an toàn[cite: 3]."
-    },
-    {
-        "q": "Các thành phần cơ bản của 1 máy tính?",
-        "options": [
-            "CPU, các thiết bị lưu trữ, bộ nhớ",
-            "CPU, bộ nhớ, các thiết bị nhập dữ liệu",
-            "Bộ nhớ, các thiết bị nhập, thiết bị xuất dữ liệu và con người",
-            "CPU, các thiết bị lưu trữ, bộ nhớ, các thiết bị nhập và các thiết bị xuất dữ liệu"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Đây là danh sách đầy đủ nhất về các nhóm linh kiện cấu thành máy tính[cite: 3]."
-    },
-    {
-        "q": "Đâu là một ví dụ về phần mềm hệ thống?",
-        "options": [
-            "Đĩa mềm",
-            "Hệ điều hành",
-            "Đĩa CD",
-            "Bàn phím"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Hệ điều hành là phần mềm hệ thống lõi để quản lý phần cứng và ứng dụng[cite: 3]."
-    },
-    {
-        "q": "Tuỳ chọn nào cho phép cải thiện hiệu năng của máy tính?",
-        "options": [
-            "Thêm card mạng không dây",
-            "Nâng cấp RAM, CPU của máy tính",
-            "Thêm các thiết bị không dây",
-            "Tăng số cổng kết nối"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. RAM và CPU là hai thành phần ảnh hưởng trực tiếp đến hiệu suất xử lý tác vụ[cite: 3]."
-    },
-    {
-        "q": "Thiết bị nào hoạt động trong một môi trường máy tính nối mạng dùng để ngăn chặn một số liên lạc bị cấm bởi chính sách an ninh của cá nhân hay tổ chức?",
-        "options": [
-            "Điểm truy cập không dây",
-            "Router",
-            "Tường lửa",
-            "Switch"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Tường lửa (Firewall) làm nhiệm vụ kiểm soát và lọc các luồng dữ liệu mạng[cite: 3]."
-    },
-    {
-        "q": "Phát biểu nào là đúng khi nói đến bộ nhớ RAM và ROM ?",
-        "options": [
-            "Bộ nhớ ROM thường được dùng bởi các chương trình ứng dụng để lưu trữ tạm thời. Bộ nhớ RAM được dùng để lưu các file dữ liệu",
-            "Bộ nhớ RAM không bị xoá khi máy tính đã tắt. Bộ nhớ ROM bị xoá khi máy tính tắt",
-            "RAM và ROM là hai bộ nhớ truy cập ngẫu nhiên",
-            "Bộ nhớ RAM là bộ nhớ đọc và ghi, trong khi ROM là bộ nhớ chỉ đọc"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. RAM lưu dữ liệu tạm thời (đọc/ghi), ROM thường lưu firmware và chỉ cho phép đọc[cite: 3]."
-    },
-    {
-        "q": "Phát biểu nào sau đây là đúng?",
-        "options": [
-            "Phần mềm là tập hợp của các thiết bị nhập như máy scan, bàn phím, chuột,...",
-            "Phần mềm là một tập hợp những lệnh được viết bằng một hoặc nhiều ngôn ngữ lập trình, và các dữ liệu hay tài liệu liên quan nhằm tự động thực hiện một số nhiệm vụ hay chức năng",
-            "Phần mềm là tập hợp của các thiết bị xuất như màn hình, máy in, máy chiếu,...",
-            "Phần mềm là tập hợp của các thiết bị lưu trữ như ổ cứng, đĩa mềm, USB,..."
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Đây là khái niệm chuẩn xác nhất về phần mềm (Software)[cite: 3]."
-    },
-    {
-        "q": "Hành động nào nên thực hiện để tăng hiệu năng của máy tính?",
-        "options": [
-            "Thường xuyên khôi phục các tệp tin từ thùng rác",
-            "Loại bỏ các chương trình không bao giờ dùng và đóng bớt các ứng dụng cùng chạy tại một thời điểm",
-            "Luôn giữ các chương trình của nhà sản xuất trên máy tính",
-            "Chạy nhiều chương trình quét virus để tăng độ bảo vệ"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Giải phóng tài nguyên RAM và CPU giúp máy tính chạy mượt mà hơn[cite: 3]."
-    },
-    {
-        "q": "Virus máy tính là gì?",
-        "options": [
-            "Virus sinh học lây lan qua việc sử dụng chung bàn phím",
-            "Chương trình máy tính mô tả hoạt động của virus",
-            "Chương trình máy tính có khả năng tự lây lan nhằm phá hoại hoặc lấy cắp thông tin",
-            "Chương trình máy tính hoạt động ngay cả khi tắt máy"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Virus máy tính là các đoạn mã độc do con người tạo ra nhằm mục đích phá hoại[cite: 3]."
-    },
-    {
-        "q": "Thiết bị ngoại vi của máy tính là thiết bị nào?",
-        "options": [
-            "Máy in",
-            "Máy nghe nhạc Mp3",
-            "Máy tính bảng",
-            "Sách điện tử"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Máy in là thiết bị kết nối mở rộng bên ngoài phục vụ quá trình xuất dữ liệu[cite: 3]."
-    },
-    {
-        "q": "Khi đọc các thông số cấu hình của một máy tính thông thường: 2GHZ-320GB-4.00GB, con số 4.00GB chỉ điều gì?",
-        "options": [
-            "Chỉ tốc độ của bộ vi xử lý",
-            "Chỉ dung lượng của đĩa cứng",
-            "Chỉ dung lượng của bộ nhớ chỉ đọc ROM",
-            "Chỉ dung lượng bộ nhớ truy cập ngẫu nhiên RAM"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Tham số thứ ba (4.00GB) thường đại diện cho dung lượng bộ nhớ RAM[cite: 3]."
-    },
-    {
-        "q": "Chương trình điều kiển thiết bị trong các đĩa CD kèm theo khi gắn thêm thiết bị ngoại vi cho máy tính thường gọi là gì?",
-        "options": [
-            "IOS",
-            "Driver",
-            "RAM",
-            "ROM"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Driver (Trình điều khiển) giúp hệ điều hành giao tiếp được với phần cứng[cite: 3]."
-    },
-    {
-        "q": "Phương án nào sau đây là đúng?",
-        "options": [
-            "Khi chuyển sang chế độ Sleep của Windows 10, máy tính không tiêu thụ điện năng",
-            "Khi chuyển sang chế độ Sleep của Windows 10, máy tính vẫn tiêu thụ điện năng",
-            "Khi chuyển sang chế độ Shutdown của Windows 10, máy tính vẫn tiêu thụ điện năng",
-            "Khi chuyển sang chế độ Logout của Windows 10, máy tính không tiêu thụ điện năng"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Chế độ Sleep duy trì một dòng điện nhỏ nuôi RAM để lưu trạng thái phiên làm việc[cite: 3]."
-    },
-    {
-        "q": "Các thiết bị dùng để nhập dữ liệu vào máy tính là?",
-        "options": [
-            "Bàn phím, máy ghi hình trực tiếp, chuột, máy quét",
-            "Loa máy tính",
-            "Máy fax",
-            "Máy in"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Đây là nhóm các thiết bị Input cơ bản[cite: 3]."
-    },
-    {
-        "q": "Đâu là thiết bị lưu trữ dữ liệu?",
-        "options": [
-            "Máy in",
-            "Webcam",
-            "Cần điểu khiển",
-            "USB"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. USB Flash Drive là thiết bị lưu trữ dữ liệu di động phổ biến[cite: 3]."
-    },
-    {
-        "q": "Chức năng chính của hệ điều hành (Operating System) là gì?",
-        "options": [
-            "Thực hiện các lệnh theo yêu cầu của người sử dụng",
-            "Tất cả các đáp án đều đúng",
-            "Quản lý, phân phối và thu hồi bộ nhớ",
-            "Điều khiển các thiết bị ngoại vi như ổ đĩa, máy in, bàn phím, màn hình"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Hệ điều hành đảm nhận quản lý toàn bộ tài nguyên phần cứng và ứng dụng[cite: 3]."
-    },
-    {
-        "q": "Dưới góc độ địa lý, mạng máy tính được phân thành?",
-        "options": [
-            "Mạng cục bộ, mạng toàn cục, mạng diện rộng, mạng toàn cầu",
-            "Mạng cục bộ, mạng diện rộng, mạng toàn cầu",
-            "Mạng toàn cục, mạng diện rộng, mạng toàn cầu",
-            "Mạng cục bộ, mạng toàn cục, mạng diện rộng"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Tương ứng với các chuẩn mạng LAN, WAN và GAN[cite: 3]."
-    },
-    {
-        "q": "Loại mã nguồn độc hại nào không có chức năng tự sao chép nhưng lại có chức năng hủy hoại tương tự virus?",
-        "options": [
-            "Worm",
-            "Logic bomb",
-            "Trojan",
-            "Stealth virus"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Trojan Horse thường ẩn mình dưới vỏ bọc một phần mềm hợp pháp để đánh lừa người dùng[cite: 3]."
-    },
-    {
-        "q": "Những thiết bị nào sau đây được xếp vào nhóm thiết bị ngoại vi?",
-        "options": [
-            "Bàn phím, chuột, màn hình, máy in",
-            "Mainboard, CPU, CD-ROM Drive, Chuột",
-            "HDD, CD-ROM Drive, FDD, bàn phím",
-            "Màn hình, CPU, RAM, Main"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Các linh kiện này kết nối và giao tiếp với khối trung tâm qua các cổng mở rộng[cite: 3]."
-    },
-    {
-        "q": "Thành phần nào của máy tính có thể ngăn máy tính khởi động, nếu nó bị hư hỏng hoặc kết nối không đúng cách?",
-        "options": [
-            "Chuột",
-            "Bàn phím",
-            "Máy in",
-            "Ổ đĩa cứng"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Ổ cứng lưu trữ hệ điều hành, nếu hỏng thì máy tính không thể boot vào Windows[cite: 3]."
-    },
-    {
-        "q": "Hãy chỉ ra tên của một số hệ điều hành?",
-        "options": [
-            "Linux, Turbo",
-            "Linux, Windows, Mac OS",
-            "Windows, Max",
-            "Linux, Windon"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Đây là 3 hệ điều hành phổ biến nhất dành cho máy tính hiện nay[cite: 3]."
-    },
-    {
-        "q": "Mạng LAN là viết tắt của?",
-        "options": [
-            "Location At Network",
-            "Local Area Network",
-            "Local At NetWork",
-            "Local Area Net"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. LAN có nghĩa là Mạng máy tính cục bộ[cite: 3]."
-    },
-    {
-        "q": "Lợi ích của email so với thư thông thường?",
-        "options": [
-            "Tất cả các đáp án đều đúng",
-            "Tốc độ gửi, nhận thư nhanh",
-            "Tốn ít công vận chuyển, lưu trữ",
-            "Khối lượng thư gửi và nhận lớn hơn so với thư thông thường"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Thư điện tử tối ưu vượt trội về chi phí, tốc độ và khả năng lưu trữ[cite: 3]."
-    },
-    {
-        "q": "Phần mềm nào có thể gây hại cho máy tính của người dùng?",
-        "options": [
-            "Virut",
-            "Spyware",
-            "Virut, Spyware",
-            "Microsoft Office"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Cả Virus và phần mềm gián điệp (Spyware) đều là các mã độc hại[cite: 3]."
-    },
-    {
-        "q": "Các thành phần: RAM, CPU, thiết bị nhập xuất là?",
-        "options": [
-            "Phần cứng máy tính",
-            "Phần mềm máy tính",
-            "Thiết bị lưu trữ",
-            "Thiết bị mạng và truyền thông"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Đây là các linh kiện điện tử tạo nên cấu trúc vật lý của máy tính[cite: 3]."
-    },
-    {
-        "q": "Nhóm nào sau đây bao gồm các thiết bị được xếp vào cùng loại?",
-        "options": [
-            "Đĩa cứng trong, máy in, các loại đĩa quang (CD, DVD), thẻ nhớ, ổ nhớ di động",
-            "Đĩa cứng trong, đĩa cứng ngoài, USB, thẻ nhớ, máy scan, ổ nhớ di động",
-            "Máy in, máy scan, màn hình, loa",
-            "Đĩa cứng trong, đĩa cứng ngoài, các loại đĩa quang (CD, DVD), thẻ nhớ, ổ nhớ di động"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Nhóm D liệt kê toàn bộ các thiết bị chuyên dụng phục vụ việc lưu trữ dữ liệu[cite: 3]."
-    },
-    {
-        "q": "Hệ thống nào là tập hợp các chương trình phần mềm chạy trên máy tính, dùng để điều hành, quản lý các thiết bị phần cứng và tài nguyên phần mềm trên máy tính?",
-        "options": [
-            "Phần mềm ứng dụng",
-            "Hệ điều hành",
-            "Phần cứng",
-            "Các loại trình dịch trung gian"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Đây là định nghĩa tổng quát của Hệ điều hành (OS)[cite: 3]."
-    },
-    {
-        "q": "Thuật ngữ “RAM” là từ viết tắt của cụm từ?",
-        "options": [
-            "Random Access Memory",
-            "Read Access Memory",
-            "Recent Access Memory",
-            "Read And Modify"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. RAM là bộ nhớ truy cập ngẫu nhiên[cite: 3]."
-    },
-    {
-        "q": "Máy Scanner được kết nối với máy tính thông qua cổng nào sau đây?",
-        "options": [
-            "RJ 45",
-            "Jack 3.5",
-            "RJ 11",
-            "USB"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Đa số các thiết bị ngoại vi như máy in, máy quét (Scanner) hiện nay dùng giao tiếp USB[cite: 3]."
-    },
-    {
-        "q": "Phần mềm nào dưới đây được cài đặt đầu tiên trong máy tính?",
-        "options": [
-            "Ms Office",
-            "MS Windows",
-            "FireFox",
-            "Norton Antivirus"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Hệ điều hành phải được cài đặt trước làm nền tảng để chạy các ứng dụng khác[cite: 3]."
-    },
-    {
-        "q": "Khi sử dụng mạng LAN ta được các lợi ích gì?",
-        "options": [
-            "Quản lý tập trung",
-            "Tất cả các đáp án đều đúng",
-            "Chia sẻ tài nguyên (ổ cứng, cơ sở dữ liệu, máy in, các phần mềm tiện ích,...)",
-            "Dễ bảo trì, bảo dưỡng"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Mạng LAN hỗ trợ người dùng giao tiếp, chia sẻ tài nguyên và quản lý thiết bị dễ dàng[cite: 3]."
-    },
-    {
-        "q": "Để phòng chống Virus, cách tốt nhất là?",
-        "options": [
-            "Sử dụng USB mà không quét Virus",
-            "Không nối mạng Internet cho máy tính",
-            "Sử dụng các chương trình quét virus nổi tiếng và phải cập nhật thường xuyên, thường xuyên kiểm tra các ổ đĩa, đặc biệt thận trọng khi sao chép dữ liệu từ nơi khác mang tới",
-            "Chỉ quét virus cho những ổ đĩa cài hệ điều hành"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Sự kết hợp giữa phần mềm bảo vệ có bản quyền và thói quen sử dụng cẩn trọng là phương pháp tốt nhất[cite: 3]."
-    },
-    {
-        "q": "ROM là bộ nhớ gì?",
-        "options": [
-            "Bộ nhớ chỉ đọc",
-            "Bộ nhớ tạm thời",
-            "Bộ nhớ đọc, ghi",
-            "Bộ nhớ ngoài"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. ROM (Read-Only Memory) chứa thông tin thiết yếu không bị mất đi khi ngắt nguồn điện[cite: 3]."
-    },
-    {
-        "q": "Bàn phím máy tính là thiết bị nào trong các thiết bị sau?",
-        "options": [
-            "Thiết bị xuất thông tin",
-            "Thiết bị lưu trữ thông tin",
-            "Thiết bị thoát thông tin",
-            "Thiết bị nhập thông tin"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Bàn phím là thiết bị chính dùng để con người nhập dữ liệu vào máy tính[cite: 3]."
-    },
-    {
-        "q": "Hãy kể tên một số hệ điều hành?",
-        "options": [
-            "Linux, Turbo",
-            "Linux, Windows, Mac OS",
-            "Windows, Max",
-            "Mac OS, Windon"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Linux, Windows và Mac OS là các nền tảng hệ điều hành tiêu chuẩn trên thị trường[cite: 3]."
-    },
-    {
-        "q": "Mạng LAN là mạng kết nối các máy tính?",
-        "options": [
-            "Ở cách nhau một khoảng cách lớn",
-            "Ở gần nhau",
-            "Cùng một hệ điều hành",
-            "Không dùng chung một giao thức"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Mạng cục bộ (LAN) thường kết nối các thiết bị trong phạm vi hẹp như văn phòng, tòa nhà[cite: 3]."
-    },
-    {
-        "q": "Luật công nghệ thông tin ra đời và chính thức có hiệu lực từ ngày, tháng, năm nào?",
-        "options": [
-            "Ngày 29/6/2005 và có hiệu lực ngày 01/01/2006",
-            "Ngày 29/6/2007 và có hiệu lực ngày 01/01/2008",
-            "Ngày 29/6/2006 và có hiệu lực ngày 01/01/2007",
-            "Ngày 29/6/2008 và có hiệu lực ngày 01/01/2009"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Luật Công nghệ thông tin số 67/2006/QH11 được thông qua 29/06/2006 và có hiệu lực từ 01/01/2007[cite: 3]."
-    },
-{
-        "q": "Phần mềm ứng dụng nào dùng để tạo bài thuyết trình?",
-        "options": [
-            "Word",
-            "Excel",
-            "Photoshop",
-            "Powerpoint"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. PowerPoint là phần mềm chuyên dụng tạo bài thuyết trình."
-    },
-    {
-        "q": "Để xem thông tin phiên bản của Hệ điều hành cài đặt trên máy tính người dùng chọn thao tác nào sau đây?",
-        "options": [
-            "Nhấn chuột trái vào My Computer chọn Properties",
-            "Nhấn chuột phải vào Computer chọn Properties",
-            "Nhấn chuột phải vào This PC chọn Properties",
-            "Nhấn chuột trái vào Computer chọn Manager"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Thao tác chuẩn là chuột phải vào This PC chọn Properties."
-    },
-    {
-        "q": "Mục tiêu chính của Hệ điều hành là gì?",
-        "options": [
-            "Dùng để quản lý các tệp tin",
-            "Tách người dùng khỏi sự phức tạp của phần cứng",
-            "Chia sẻ file",
-            "Làm máy tính nhanh hơn"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Mục tiêu chính là che giấu sự phức tạp phần cứng với người dùng."
-    },
-    {
-        "q": "Lựa chọn các bước thực hiện để hiển thị bàn phím ảo?",
-        "options": [
-            "Accessories → Ease of Access → On Screen Keyboard",
-            "Accessories →Program → On-Screen Keyboard",
-            "Vào run gõ osk",
-            "Vào run gõ On Screen Keyboard"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Lệnh osk trong Run dùng để mở On Screen Keyboard."
-    },
-    {
-        "q": "Phím ESC có chức năng gì?",
-        "options": [
-            "Hủy bỏ (cancel) một hoạt động đang thực hiện",
-            "Tạo khoảng cách giữa các ký tự",
-            "Xóa ký tự trắng",
-            "Vào Bios khi khởi động máy tính"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Phím ESC (Escape) dùng để hủy bỏ lệnh."
-    },
-    {
-        "q": "Chuột máy tính thuộc nhóm thiết bị nào?",
-        "options": [
-            "Thiết bị xuất",
-            "Thiết bị nhập",
-            "Thiết bị nhập xuất",
-            "Thiết bị không dây"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Chuột là thiết bị nhập (Input)."
-    },
-    {
-        "q": "Lựa chọn bảng mã để gõ tiếng Việt với phông chữ là Times New Roman.",
-        "options": [
-            "TCVN3",
-            "VNI",
-            "Unicode",
-            "Tất cả đều đúng"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Phông Times New Roman dùng chuẩn bảng mã Unicode."
-    },
-    {
-        "q": "Để gỡ bỏ một ứng dụng, từ nút Start người dùng lựa chọn vào mục nào?",
-        "options": [
-            "Computer",
-            "All Programs",
-            "Control Panel",
-            "Default Programs"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Control Panel quản lý việc cài đặt/gỡ bỏ ứng dụng."
-    },
-    {
-        "q": "Các tệp tin hệ thống có phần đuôi mở rộng là gì?",
-        "options": [
-            ".rft",
-            ".exe",
-            ".sys",
-            ".txt"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Đuôi .sys viết tắt của System."
-    },
-    {
-        "q": "Các tệp tin văn bản có phần đuôi mở rộng là gì?",
-        "options": [
-            ".doc",
-            ".pdfx",
-            ".pptx",
-            ".xls"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Đuôi .doc là định dạng tệp văn bản chuẩn của Word."
-    },
-    {
-        "q": "Tệp tin nén có các phần mở rộng là?",
-        "options": [
-            ".rap",
-            ".rarx",
-            ".zip",
-            ".zipx"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Zip là định dạng tệp tin nén phổ biến."
-    },
-    {
-        "q": "Chọn các đáp án đúng.",
-        "options": [
-            "TCVN3: Là bảng mã theo tiêu chuẩn (cũ) của Việt Nam.",
-            "Font là tập hợp hoàn chỉnh các chữ cái, các dấu câu, các con số, và các ký tự đặc biệt, theo một kiểu loại, định dạng (thường hoặc đậm nét), hình dáng (thẳng hoặc nghiêng) và kích cỡ phù hợp và có thể phân biệt khác nhau",
-            "Unicode: Là bộ mã chuẩn quốc tế được thiết kế để dùng làm bộ mã duy nhất cho tất cả các ngôn ngữ khác nhau trên thế giới",
-            "Cả 3 phương án trên"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Tất cả các khái niệm trên đều chính xác."
-    },
-    {
-        "q": "Các phông chữ “. Vnarial, .Vntime, .VnarialH, .VntimeH\" sử dụng bảng mã nào để gõ tiếng Việt?",
-        "options": [
-            "Unicode",
-            "VNI",
-            "TCVN3",
-            "UTF-8"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Các phông có tiền tố chấm (.) dùng bảng mã TCVN3."
-    },
-    {
-        "q": "Để chuyển đổi các bảng mã với Unikey người dùng lựa chọn mục nào?",
-        "options": [
-            "Convert",
-            "Công cụ",
-            "Chuyển mã",
-            "Nhấn Crtl+F"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Công cụ Unikey có chức năng Chuyển mã (Ctrl+Shift+F6)."
-    },
-    {
-        "q": "Để lưu một tên mới cho một tệp tin MS-Word đang chỉnh sửa người dùng thực hiện như thế nào?",
-        "options": [
-            "Nhấn tổ hợp phím Ctrl +S",
-            "Vào File chọn Save",
-            "Vào File chọn Save As",
-            "Nhấn phím S"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Save As dùng để lưu bản sao với tên mới."
-    },
-    {
-        "q": "Phím có chức năng thu nhỏ toàn bộ cửa sổ xuống thanh Taskbar để hiển thị màn hình Desktop?",
-        "options": [
-            "Nhấn tổ hợp phím Windows + F",
-            "Nhấn tổ hợp phím Windows + T",
-            "Nhấn tổ hợp phím Windows + E",
-            "Nhấn tổ hợp phím Windows +M"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Win + M có tác dụng Minimize toàn bộ cửa sổ."
-    },
-    {
-        "q": "Chọn các đáp án đúng khi nói về chế độ Sleep trên máy tính?",
-        "options": [
-            "Chế độ Sleep chỉ có trên máy tính để bàn",
-            "Ram không hoạt động khi chọn chế độ Sleep",
-            "CPU không hoạt động khi chọn chế độ Sleep",
-            "Có thể sạc điện thoại qua cổng USB khi chọn chế độ Sleep cho máy tính"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Khi Sleep, CPU ngừng làm việc, chỉ duy trì nguồn điện nhỏ nuôi RAM."
-    },
-    {
-        "q": "Chọn đáp án đúng khi người dùng lựa chọn chế độ Sleep trên máy tính xách tay?",
-        "options": [
-            "Vẫn sử dụng nguồn điện",
-            "Tắt hoàn toàn, không sử dụng nguồn điện",
-            "Dữ liệu trên Ram bị xóa hết",
-            "Dữ liệu trên Ram lưu vào cứng"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Chế độ Sleep vẫn tiêu thụ pin (nguồn điện) để giữ trạng thái trên RAM."
-    },
-    {
-        "q": "Để đóng một cửa sổ ứng dụng đang làm việc người dùng sử dụng tổ hợp phím nào sau đây?",
-        "options": [
-            "Alt+F4",
-            "Alt+Esc",
-            "Window+F4",
-            "Ctrl +F4"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Tổ hợp Alt + F4 dùng để đóng cửa sổ phần mềm."
-    },
-    {
-        "q": "Để hiển thị cửa sổ ra toàn màn hình người dùng lựa chọn cách nào?",
-        "options": [
-            "Restore Down",
-            "Maximize",
-            "Mininize",
-            "Nhấn Alt+M"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Maximize phóng to cửa sổ ra toàn màn hình."
-    },
-    {
-        "q": "Để tắt một ứng dụng đang bị treo người dùng lựa chọn cách nào sau?",
-        "options": [
-            "Nhấn chuột vào dấu X trên góc phải của ứng dụng",
-            "Nhấn nút Thoát trên ứng dụng",
-            "Vào Windows task manager, chọn ứng dụng bị treo nhấn End Task",
-            "Nhấn chuột phải vào ứng dụng dưới thanh Task bar chọn Close Windows"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Task Manager giúp buộc dừng tiến trình đang bị treo."
-    },
-    {
-        "q": "Phát biểu nào sau đây là đúng về chế độ Hibernate trên máy tính?",
-        "options": [
-            "Các thiết bị nhập xuất như màn hình, ổ đĩa, bàn phím, chuột... dừng hoạt động (đỡ tốn điện), còn CPU và RAM vẫn hoạt động",
-            "Chế độ ngủ đông đóng băng tất cả máy tính",
-            "Lưu toàn bộ trạng thái làm việc của máy vào ổ cứng rồi tắt máy",
-            "Chỉ có trên các thiết bị di động và dùng pin"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Hibernate (Ngủ đông) ghi dữ liệu RAM vào ổ cứng để không tiêu thụ điện."
-    },
-    {
-        "q": "Để thiết lập kích thước hiển thị cho các icon trên màn hình Desktop lớn nhất, người dùng lựa chọn mục nào trong thẻ View?",
-        "options": [
-            "Large icons",
-            "Medium icons",
-            "Small icons",
-            "Big icons"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Large icons thiết lập kích thước biểu tượng lớn nhất."
-    },
-    {
-        "q": "Trong các phần mềm sau, phần mềm nào là phần mềm ứng dụng?",
-        "options": [
-            "Windows XP",
-            "Microsoft Word",
-            "Linux",
-            "Unix"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Các đáp án khác đều là hệ điều hành."
-    },
-    {
-        "q": "Để thiết lập một máy in mặc định trên máy tính người dùng phải thực hiện như thế nào?",
-        "options": [
-            "Nhấn chuột phải vào máy in, chọn set default printer.",
-            "Chọn máy in, sau đó nhấn Add default printer.",
-            "Nhấn trái phải vào máy in, chon manage, chọn Set as default printer.",
-            "Nhấn Ctrl+P, sau đó chọn máy in"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Cài đặt máy in mặc định qua tùy chọn Set default printer."
-    },
-    {
-        "q": "Để xóa một lệnh in trong danh sách các lệnh đang in, người dùng lựa chọn cách nào sau đây?",
-        "options": [
-            "Nhấn chuột phải lên lệnh in trong hàng đợi, chọn Cancel",
-            "Nhấn chuột phải lên lệnh in trong hàng đợi, chọn Reset",
-            "Nhấn chuột phải lên lệnh in trong hàng đợi, chọn Delete",
-            "Nhấn chuột phải lên lệnh in trong hàng đợi, chọn Remove"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Dùng lệnh Cancel để hủy lệnh in trong hàng đợi."
-    },
-    {
-        "q": "Các bước để thực hiện chia sẻ máy in qua mạng là?",
-        "options": [
-            "Nhấn chuột phải vào máy in chọn Sharing",
-            "Nhấn chuột phải vào máy in chọn Properties, nhấn Sharing",
-            "Nhấn chuột trái vào máy in chọn Manage/Printer Properties, nhấn Sharing",
-            "Nhấn chuột phải vào máy in chọn Printing Preferences"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Vào Printer Properties và bật tính năng Sharing."
-    },
-    {
-        "q": "Để in một tài liệu ra 6 bản, người dùng nhấn Ctrl+P sau đó chọn mục nào?",
-        "options": [
-            "Pages nhập số 6",
-            "Print properties",
-            "Copies nhập số 6",
-            "Chọn 6 page per sheet"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Mục Copies quy định số lượng bản sao cần in."
-    },
-    {
-        "q": "Để khôi phục tệp tin có tên là cntt.docx vừa xóa người dùng phải thực hiện như thế nào?",
-        "options": [
-            "Mở thùng rác, tìm và chọn tệp tin cntt.doc. Nhấn chuột phải chọn Restore",
-            "Mở thùng rác, tìm và chọn tệp tin cntt.docx. Nhấn chuột phải chọn Restore",
-            "Mở thùng rác, nhấn Ctrl+Z",
-            "Mở thùng rác, tìm và chọn tệp tin cntt.docx. Nhấn Ctrl+Z"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Cần tìm đúng định dạng file gốc là .docx và chọn Restore."
-    },
-    {
-        "q": "Hành động người dùng chọn một tệp tin, sau đó nhấn một lần chuột vào tệp tin có ý nghĩa gì?",
-        "options": [
-            "Mở tệp tin",
-            "Đặt lại tên cho tệp tin",
-            "Xem thông tin của tệp tin",
-            "Ẩn tệp tin"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Thao tác này kích hoạt chế độ đổi tên file (Rename)."
-    },
-    {
-        "q": "Chọn nhóm các ký tự có thể sử dụng để đặt tên cho tệp tin?",
-        "options": [
-            "@ # $ \\",
-            "+ - x",
-            "\\/:*\"< >|",
-            "# $.? []"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Windows cấm dùng các ký tự \\ / : * ? \" < > | trong tên file."
-    },
-    {
-        "q": "Để xóa tạm thời một tệp tin, người dùng lựa chọn cách nào dưới đây?",
-        "options": [
-            "Chọn tệp tin cần xóa, nhấn Shift+Delete",
-            "Chọn tệp tin cần xóa, nhấn Ctrl+Delete",
-            "Chọn tệp tin, kích trái phải chọn Delete",
-            "Chọn tệp tin nhấn phím Delete"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Nhấn Delete sẽ chuyển file vào Recycle Bin (xóa tạm thời)."
-    },
-    {
-        "q": "Xem thông tin đầy đủ về một tệp tin, người dùng lựa chọn cách nào dưới đây?",
-        "options": [
-            "Di chuột lên vị trí của tệp tin",
-            "Nhấn chuột phải lên tệp tin chọn Properties",
-            "Nhấn chuột trái lên tệp tin chọn Properties",
-            "Nhấn chọn tệp tin, nhấn phím F12"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Thuộc tính chi tiết nằm trong bảng Properties."
-    },
-    {
-        "q": "Để ẩn một tệp tin trong thư mục, người dùng lựa chọn cách nào dưới đây?",
-        "options": [
-            "Nhấn chuột trái chọn Properties, đánh dấu Hiden. Ok",
-            "Nhấn chuột phải chọn Properties, đánh dấu Hidden. Ok",
-            "Nhấn chuột phải chọn Properties, đánh dấu Read-only. Ok",
-            "Nhấn chuột phải chọn Properties, chọn Advanced và đánh dấu Hidden. Ok"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Tùy chọn ẩn (Hidden) có trong Properties của file."
-    },
-    {
-        "q": "Khi xóa một biểu tượng short cut của một thư mục. Điều đó có nghĩa là gì?",
-        "options": [
-            "Xóa luôn thư mục đó",
-            "Chỉ xóa tạm thời thư mục đó",
-            "Chỉ xóa icon short cut, thư mục không bị xóa",
-            "Xóa vĩnh viễn thư mục đó"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Shortcut chỉ là lối tắt, xóa nó không ảnh hưởng đến thư mục gốc."
-    },
-    {
-        "q": "Để tạo một shortcut cho thư mục CNTT trên màn hình Desktop người dùng lựa chọn cách nào sau đây?",
-        "options": [
-            "Nhấn chuột phải lên thư mục, chọn new shortcut",
-            "Nhấn chuột phải lên thư mục CNTT, chọn Send to/Desktop",
-            "Nhấn chuột phải lên thư mục CNTT, chọn Creat to Desktop",
-            "Nhấn chuột phải lên thư mục CNTT, chọn Move to Desktop"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Sử dụng lệnh Send to -> Desktop (create shortcut)."
-    },
-    {
-        "q": "Hãy lựa chọn chế độ xem hiển thị các tập tin hay thư mục bằng các biểu tượng cỡ trung bình, có tên tệp tin ở bên phải biểu tượng, định dạng và kích cỡ tệp tin.",
-        "options": [
-            "List",
-            "Content",
-            "Tiles",
-            "Detail"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Chế độ Tiles hiển thị theo dạng ô gạch kèm thông tin phụ trợ bên phải."
-    },
-    {
-        "q": "Hãy lựa chọn các cách bật chế độ gõ chữ in Hoa trên máy tính?",
-        "options": [
-            "Num Lock",
-            "Caps Lock",
-            "Giữ phím Ctrl và gõ chữ cái",
-            "Giữ phím Ctrl và gõ chữ cái"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Phím Caps Lock có chức năng bật tắt chế độ gõ in hoa."
-    },
-    {
-        "q": "Phông chữ Tahoma sử dụng cho bảng mã nào?",
-        "options": [
-            "VNI",
-            "ABC",
-            "Unicode",
-            "TCVN3"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Tahoma tương thích với bảng mã tiêu chuẩn quốc tế Unicode."
-    },
-    {
-        "q": "Phông chữ VNTime sử dụng bảng mã nào để gõ tiếng Việt?",
-        "options": [
-            "UTF-8",
-            "VNI",
-            "Unicode",
-            "TCVN3"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Các font .Vn sử dụng bảng mã chuẩn cũ TCVN3 (ABC)."
-    },
-    {
-        "q": "Chức năng của Control Panel là?",
-        "options": [
-            "Soạn thảo văn bản trên Windows",
-            "Thiết lập cấu hình Windows 10 như thay đổi ngày giờ, cài đặt thêm các thiết bị, gỡ bỏ các chương trình ứng dụng,",
-            "Sao chép các tệp tin trên máy tính",
-            "Cho thấy tên của các máy tính và các tài nguyên khác trong mạng cục bộ"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Chức năng chính của Control Panel là quản trị cấu hình hệ thống."
-    },
-    {
-        "q": "Các biểu tượng nào sau đây trên nền Desktop của hệ điều hành Windows 10 được gọi là biểu tượng Shortcut?",
-        "options": [
-            "This PC, My Documents, Recycle Bin",
-            "Microsoft Word, Micrsoft Excel, Unikey",
-            "Microsoft Word, My Computer, Unikey",
-            "Không có đáp án đúng"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. App cài thêm thường đưa shortcut ra màn hình chính."
-    },
-    {
-        "q": "Theo nguyên tắc quản lý file, thư mục của hệ điều hành Windows, phát biểu nào sau đây không đúng?",
-        "options": [
-            "Trong một thư mục có thể chứa các file và thư mục con khác",
-            "Trong một file có thể chứa các file và thư mục con khác",
-            "Trong một file có thể không chứa thông tin",
-            "Không có đáp án đúng"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. File là đơn vị lưu trữ dữ liệu tận cùng, không thể chứa thư mục/file khác."
-    },
-    {
-        "q": "Trong hệ điều hành Windows, để thực hiện chọn các tệp/thư mục liền nhau trong danh sách file/thư mục cần thực hiện thao tác nào sau đây?",
-        "options": [
-            "Kích chuột tại file đầu, giữ phím Shift sau đó kích chuột tại file cuối",
-            "Kích chuột tại file đầu, giữ phím Alt sau đó kích chuột tại file cuối",
-            "Kích chuột tại file đầu, giữ phím Ctrl sau đó kích chuột tại file cuối",
-            "Kích chuột phải tại file đầu, giữ phím F4 sau đó kích chuột tại file cuối"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Giữ phím Shift để chọn một dãy tập tin liền kề."
-    },
-    {
-        "q": "Chức năng tìm kiếm trong hệ điều hành Windows 10 cho phép tìm file và folders theo?",
-        "options": [
-            "Ngày tạo",
-            "Tần suất sử dụng file",
-            "Tên, Ngày chỉnh sửa, Kích thước",
-            "Hình ảnh trong file"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Công cụ tìm kiếm lọc được theo tên, ngày sửa chữa (Date modified), và kích cỡ (Size)."
-    },
-    {
-        "q": "Các kí tự nào sau đây được sử dụng để thay thế tên file trong thao tác tìm kiếm?",
-        "options": [
-            "Kí tự & và @",
-            "Kí tự ! và %",
-            "Kí tự * và ?",
-            "Kí tự & và $"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Ký tự '*' thay cho một chuỗi, '?' thay cho một ký tự."
-    },
-    {
-        "q": "Khi kích đúp chuột vào thanh tiêu đề của một cửa sổ đang ở kích thước cực đại trong hệ điều hành Windows 10 sẽ",
-        "options": [
-            "Thu cửa sổ về kích thước cực tiểu",
-            "Chuyển về chế độ cho phép thay đổi kích thước cửa sổ",
-            "Đóng cửa sổ đó",
-            "Thu cửa sổ về kích thước trước đó"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Hành động này (Restore Down) khôi phục kích thước ban đầu."
-    },
-    {
-        "q": "Trong hệ điều hành Windows, phần mở rộng trong tên file đảm nhận chức năng nào sau đây?",
-        "options": [
-            "Quy định kích thước file",
-            "Quy định kiểu file",
-            "Quy định thuộc tính file",
-            "Quy định định dạng file"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Đuôi tệp (extension) quy định kiểu định dạng (type) của file."
-    },
-    {
-        "q": "Phần mở rộng của tệp tin ngăn cách nhau bởi dấu gì?",
-        "options": [
-            "Dấu chấm than (!)",
-            "Dấu chấm (.)",
-            "@",
-            "*"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Tên file và đuôi file được ngăn cách bởi dấu chấm (.)."
-    },
-    {
-        "q": "Khi sao chép Shortcut để mở một tệp hoặc thư mục từ máy A sang máy B, thì tại máy B người dùng có thể làm gì?",
-        "options": [
-            "Vẫn mở được thư mục",
-            "Không mở được thư mục hoặc tệp",
-            "Máy B sẽ không đọc được tệp hoặc thư mục",
-            "Máy B sẽ bị nhiễm Virus"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Shortcut sẽ mất tác dụng do đường dẫn gốc không tồn tại ở máy B."
-    },
-    {
-        "q": "Internet có nghĩa là?",
-        "options": [
-            "Hệ thống thông tin toàn cầu có thể được truy nhập công cộng gồm các mạng máy tính được liên kết với nhau",
-            "Hệ thống thông tin toàn cầu có thể được truy nhập công cộng gồm các máy tính được liên kết với nhau",
-            "Hệ thống thông tin toàn cầu có thể được truy nhập công cộng gồm các mạng máy tính trong một cơ quan được liên kết với nhau",
-            "Hệ thống thông tin toàn cầu có thể được truy nhập công cộng gồm các mạng máy tính trong một quốc gia được liên kết với nhau"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Internet là mạng của các mạng máy tính liên kết toàn cầu."
-    },
-    {
-        "q": "Phần mềm nào sau đây không phải là trình duyệt Web",
-        "options": [
-            "Internet Explorer",
-            "Firefox",
-            "Chromium",
-            "FireBug"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. FireBug là công cụ mở rộng (add-on) dành cho Developer, không phải trình duyệt."
-    },
-    {
-        "q": "Nút Stop trên cửa số trình duyệt web dùng để làm gì?",
-        "options": [
-            "Về trang chủ",
-            "Ngừng tải nội dung trang Web",
-            "Chuyển đến một liên kết khác",
-            "Đóng trình duyệt Web"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Dừng quá trình tải trang hiện tại."
-    },
-    {
-        "q": "Dịch vụ công trực tuyến là gì?",
-        "options": [
-            "Là dịch vụ hành chính công và các dịch vụ khác của cơ quan nhà nước được cung cấp cho các tổ chức, cá nhân trong mạng nội bộ của đơn vị",
-            "Là dịch vụ hành chính công và các dịch vụ khác của cơ quan nhà nước được cung cấp cho các tổ chức, cá nhân trên môi trường mạng",
-            "Là dịch vụ hành chính công và các dịch vụ khác của cơ quan nhà nước được cung cấp cho doanh nghiệp trên môi trường mạng",
-            "Là dịch vụ hành chính công và các dịch vụ khác của cơ quan nhà nước được cung cấp cho công dân trên môi trường mạng"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Nó áp dụng cho mọi cá nhân và tổ chức trên nền tảng internet."
-    },
-    {
-        "q": "Địa chỉ nào là địa chỉ email?",
-        "options": [
-            "Sinhvien@yahoo.com",
-            "vnexpress.net",
-            "google.com",
-            "hanoi.edu.vn"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Định dạng có chứa ký tự @ bắt buộc."
-    },
-    {
-        "q": "Phát biểu nào sau đây là sai?",
-        "options": [
-            "Internet là dịch vụ do công ty Internet tại Mỹ điều hành và thu phí",
-            "WWW là từ viết tắt của World Wide Web",
-            "Chúng ta có thể đăng ký để sử dụng thư miễn phí tại địa chỉ gmail.com",
-            "Thư điện tử là nền tảng cho việc xây dựng văn phòng không giấy tờ"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Internet không thuộc sở hữu riêng của công ty nào."
-    },
-    {
-        "q": "Công cụ tìm kiếm thông tin trên Internet hiện nay",
-        "options": [
-            "Google",
-            "Tất cả đều đúng",
-            "Bing",
-            "Coccoc"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Cả 3 nền tảng Google, Bing, Cốc Cốc đều là Search Engine."
-    },
-    {
-        "q": "Khi dòng chủ đề trong thư bạn nhận được bắt đầu bằng chữ \"RE:\", thì thông thường thư đó là thư gì?",
-        "options": [
-            "Thư rác, thư quảng cáo",
-            "Thư mới",
-            "Thư trả lời cho thư mà bạn đã gửi cho người đó",
-            "Thư của nhà cung cấp dịch vụ Email mà bạn đang sử dụng"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Ký hiệu RE: viết tắt của Reply (Trả lời thư)."
-    },
-    {
-        "q": "Nút Refresh trên thanh công cụ của trình duyệt Web cho phép?",
-        "options": [
-            "Đi đến một trang web khác",
-            "Tải lại một trang web",
-            "Trở về trang chủ",
-            "Thoát khỏi trình duyệt web"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Làm mới, tải lại nội dung trang hiện hành."
-    },
-    {
-        "q": "Kí hiệu nào sau đây cần có trong một địa chỉ Email?",
-        "options": [
-            "Kí hiệu @",
-            "Kí hiệu %",
-            "Kí hiệu &",
-            "Kí hiệu $"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Tên tài khoản và tên miền mail được nối bằng @."
-    },
-    {
-        "q": "Cách nhận thư điện tử đã đọc và thư điện tử chưa đọc trong hộp thư đến (Inbox) là gì?",
-        "options": [
-            "Thư đã đọc in đậm, thư chưa đọc in thường",
-            "Thư đã đọc in đậm, thư chưa đọc in nghiêng",
-            "Thư đã đọc in thường, thư chưa đọc in đậm",
-            "Thư đã đọc in nghiêng, thư chưa đọc in đậm"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Thư chưa xem luôn được in đậm (Bold) để tạo sự chú ý."
-    },
-    {
-        "q": "ISP là viết tắt của",
-        "options": [
-            "Internet Service Provider",
-            "Internet Server Provider",
-            "Internet Super Provider",
-            "Không có phương án đúng"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Thuật ngữ chỉ Nhà cung cấp dịch vụ Internet."
-    },
-    {
-        "q": "Tường lửa là gì?",
-        "options": [
-            "Một hệ thống được xây dựng để đảm bảo an ninh cho công ty",
-            "Một hệ thống báo cháy",
-            "Một hệ thống bảo mật thông tin",
-            "Tường lửa là một thiết bị phần cứng và/hoặc một phần mềm hoạt động trong một môi trường máy tính nối mạng có mục đích chống lại sự xâm nhập trái phép từ Internet"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Firewall bảo vệ máy tính khỏi các truy cập độc hại từ bên ngoài."
-    },
-    {
-        "q": "Nút \"Home\" trên trang web có nghĩa là",
-        "options": [
-            "Đi đến trang trước",
-            "Đi đến trang chủ",
-            "Đi đến nhà",
-            "Không có ý nghĩa gì, chỉ để trang trí"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Đưa người dùng về trang giao diện gốc của website."
-    },
-    {
-        "q": "Trên trang web Google, để tìm các trang Web nói trường Kiểm sát chúng ta nên gõ cụm từ nào là tốt nhất:",
-        "options": [
-            "Kiểm sát",
-            "\" Đại học Kiểm sát\"",
-            "\"Sinhvien\"",
-            "\"Kiểm\" + \"sát\""
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Sử dụng ngoặc kép để yêu cầu Google tìm cụm từ chính xác."
-    },
-    {
-        "q": "Để chặn các Email trong hộp thư Gmail không mong muốn, thực hiện thao tác chọn Email, sau đó?",
-        "options": [
-            "Kích nút Report Spam",
-            "Kích nút Delete",
-            "Kích nút Reply",
-            "Kích nút Forward"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Báo cáo Spam (thư rác) để hệ thống tự động lọc thư từ nguồn này."
-    },
-    {
-        "q": "Muốn tìm kiếm email có nguồn gốc từ địa chỉ home@hpu.edu.vn. Ta dùng cú pháp nào sau đây?",
-        "options": [
-            "\"to:home@hpu.edu.vn\"",
-            "\"send:home@hpu.edu.vn\"",
-            "\"from:home@hpu.edu.vn\"",
-            "\"source:home@hpu.edu.vn\""
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. 'from:' lọc thư từ hộp thư đi của người gửi."
-    },
-    {
-        "q": "WWW là viết tắt của?",
-        "options": [
-            "World Wide Web",
-            "Word Wide Wed",
-            "Word Wide Website",
-            "Word Wild Web"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Mạng lưới toàn cầu World Wide Web."
-    },
-    {
-        "q": "Dấu hiệu nhận biết một website an toàn?",
-        "options": [
-            "Giao diện đẹp, chức năng và menu có sắp thứ tự",
-            "Có logo chứng nhận bảo mật trên website",
-            "Có địa chỉ công ty xây dựng website",
-            "Sử dụng giao thức bảo mật để truyền tải nội dung"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Website an toàn sử dụng giao thức có mã hóa HTTPS."
-    },
-    {
-        "q": "Để tìm kiếm nhanh trang web nói về ngành Kiểm sát, ta thực hiện:",
-        "options": [
-            "Chúng ta sử dụng trang vàng Internet có trên trang web tại địa chỉ www.vnn.vn",
-            "Chúng ta mở trang web địa chỉ www.google.com/Nhập nội dung \"kiểm sát\" vào ô tìm kiếm",
-            "Chúng ta mở trình duyệt Web",
-            "Chúng ta mở trang web địa chỉ mail.yahoo.com"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Sử dụng trình tìm kiếm Google phổ thông."
-    },
-    {
-        "q": "Các Email rác được lưu trong thư mục nào?",
-        "options": [
-            "Spam",
-            "Draft",
-            "Sent",
-            "Inbox"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Spam là hòm chứa các thư bị nghi ngờ là rác/độc hại."
-    },
-    {
-        "q": "Đâu là thư mục không có sẵn trong tài khoản Email",
-        "options": [
-            "Spam",
-            "Draft",
-            "MyEmail",
-            "Sent"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. MyEmail không phải là nhãn mặc định của các trình quản lý thư."
-    },
-    {
-        "q": "Mỗi thiết bị khi tham gia vào một mạng máy tính nào đó cũng đều có",
-        "options": [
-            "Địa chỉ IP",
-            "Địa chỉ nhà",
-            "Mã sản phẩm",
-            "GPS"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. IP định danh cho một máy tính trong hệ thống mạng."
-    },
-    {
-        "q": "Trình duyệt web không thể hiển thị trang web yêu cầu, có thể do:",
-        "options": [
-            "Địa chỉ truy cập không nằm trên máy chủ của Việt Nam",
-            "Địa chỉ truy cập không được lưu vào bộ nhớ đệm của trình duyệt",
-            "Địa chỉ truy cập là một trang web cá nhân",
-            "Địa chỉ truy cập không tồn tại hoặc địa chỉ truy cập bị nhà quản trị mạng ngăn không cho truy cập"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Nguyên nhân kỹ thuật dẫn đến lỗi tải trang web."
-    },
-    {
-        "q": "Bạn làm thế nào để tìm ra địa chỉ của trang Web một cách nhanh nhất",
-        "options": [
-            "Hỏi bạn của mình",
-            "Sử dụng công cụ tìm kiếm trên Web",
-            "Mở các liên kết tham khảo",
-            "Tìm trong các tập tài liệu, sách vở liên quan"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Các máy chủ tìm kiếm hỗ trợ tra cứu URL tiện lợi nhất."
-    },
-    {
-        "q": "Để tránh lây lan virus qua email, người dùng nên làm gì?",
-        "options": [
-            "Tất cả đáp án (1), (2) và (3) đều đúng",
-            "Quét virus trước khi mở file gắn kèm trong email (1)",
-            "Không mở email của người lạ (2)",
-            "Không tải tập tin từ email khi không cần thiết (3)"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Áp dụng đồng bộ các quy tắc bảo mật an toàn mạng."
-    },
-    {
-        "q": "Email đã soạn thảo sẽ được lưu trữ trong mục nào sau đây nếu người dùng chưa bấm nút gửi thư?",
-        "options": [
-            "Spam",
-            "Outbox",
-            "Drafts",
-            "Sent"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Drafts chứa các bản thư nháp chưa được phát lệnh."
-    },
-    {
-        "q": "HTTP là gì?",
-        "options": [
-            "Là giao thức truyền tải siêu văn bản",
-            "Là ngôn ngữ để soạn thảo nội dung các trang Web",
-            "Là tên của trang web",
-            "Là địa chỉ của trang Web"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Giao thức cơ sở dùng cho Web."
-    },
-    {
-        "q": "Phát biểu nào dưới đây là sai?",
-        "options": [
-            "Mở nhiều cửa sổ duyệt web cho nhiều địa chỉ web khác nhau.",
-            "Vừa mở cửa sổ duyệt web, vừa chơi game trong lúc chờ trang web xuất hiện đầy đủ nội dung.",
-            "Nhấn nút REFRESH là để bắt đầu lại quá trình tải trang web từ máy phục vụ về máy cá nhân của người dùng.",
-            "Nhấn nút BACK để đóng cửa sổ duyệt Web."
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Nút Back chỉ dùng để lùi lại trang trước đó, không phải đóng trình duyệt."
-    },
-    {
-        "q": "Khi đã thiết lập khóa cửa sổ pop-up của 1 trang web:",
-        "options": [
-            "Toàn bộ pop-up của tất cả các trang web không được hiển thị",
-            "Bạn có thể tự thiết lập mở khóa trong trường hợp cần thiết",
-            "Bạn phải cài đặt lại trình duyệt mới hiển thị được cửa sổ pop-up",
-            "Bạn phải gửi thông báo tới quản trị trang web nếu muốn hiển thị lại"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Trình duyệt cung cấp quyền cấp phép ngoại lệ (Exception) cho pop-up."
-    },
-    {
-        "q": "Để tìm thông tin \"Công chức\" trên trang web \"www.thanhnien.vn ta vào google gõ từ khóa tìm kiếm nào để google trả về kết quả không có kết quả từ các trang web khác",
-        "options": [
-            "Công chức IN: thanhnien.vn",
-            "Công chức SITE:thanhnien.vn",
-            "Công chức ON: thanhnien.vn",
-            "Công chức FROM: thanhnienvn"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Toán tử 'site:domain' giới hạn kết quả vào một miền duy nhất."
-    },
-    {
-        "q": "Để xem lại lịch sử duyệt web ta dùng tổ hợp phím trên trình duyệt Internet Explorer",
-        "options": [
-            "Ctrl+L",
-            "Ctrl+H",
-            "Ctrl+P",
-            "Ctrl+M"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Lịch sử duyệt Web (History) được gọi bằng Ctrl + H."
-    },
-    {
-        "q": "Trang tìm kiếm Google có thể cho ra kết quả tìm kiếm theo?",
-        "options": [
-            "Hình ảnh",
-            "Tất cả các đáp án trên",
-            "Video",
-            "Website"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Google cung cấp đa nền tảng phân loại từ khóa."
-    },
-    {
-        "q": "Trong khi gửi Email, để người nhận không thể biết những ai cùng nhận thư với mình ta cần điền địa chỉ email của người đó vào mục nào sau đây?",
-        "options": [
-            "TO",
-            "CC",
-            "BCC",
-            "SEND"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. BCC (Blind Carbon Copy) giấu kín danh sách người nhận."
-    },
-    {
-        "q": "Đâu là định nghĩa đúng nhất về trang Web?",
-        "options": [
-            "Là trang siêu văn bản phối hợp giữa văn bản thông thường với hình ảnh, âm thanh, video và cả các mối liên kết đến các trang siêu văn bản khác",
-            "Là trang văn bản thông thường",
-            "Là trang văn bản chứa các liên kết cơ sở dữ liệu ở bên trong nó",
-            "Là trang văn bản chứa văn bản, hình ảnh"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Website là một tài liệu đa phương tiện được thiết kế trên nền siêu văn bản."
-    },
-    {
-        "q": "Để truy cập vào một trang Web chúng ta cần phải biết:",
-        "options": [
-            "Hệ điều hành đang sử dụng",
-            "Trang web đó của nước nào",
-            "Tất cả đều sai",
-            "Địa chỉ của trang web"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. URL là định vị duy nhất tài nguyên trên internet."
-    },
-    {
-        "q": "Trong một trang web, Hyperlink là gì?",
-        "options": [
-            "Là nội dụng được thể hiện trên Web Browser (văn bản, âm thanh, hình ảnh)",
-            "Là một thành phần trong một trang Web liên kết đến vị trí khác trên cùng trang Web đó hoặc liên kết đến một trang Web khác",
-            "Là địa chỉ của 1 trang Web",
-            "Tất cả đều sai"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Hyperlink đảm nhận kết nối và điều hướng dữ liệu."
-    },
-    {
-        "q": "Khi muốn lưu lại trang Web đang duyệt lên máy tính, bạn phải làm thế nào trên trình duyệt Internet Explorer?",
-        "options": [
-            "File/Edit",
-            "File/Save As",
-            "File/Download",
-            "File/Exit"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Trình lưu trữ mã nguồn web được kích hoạt qua Save As."
-    },
-    {
-        "q": "Để chuyển tiếp thư tới người khác, bạn sử dụng nút nào?",
-        "options": [
-            "Forward",
-            "Reply",
-            "Compose",
-            "Attactment"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Lệnh Forward gửi toàn bộ nội dung thư nhận được đến địa chỉ mới."
-    },
-    {
-        "q": "\"Link\" trên trang web có nghĩa là?",
-        "options": [
-            "Liên kết đến 1 liên kết khác",
-            "Liên kết đến 1 trang web khác",
-            "Liên kết",
-            "Tất cả đều đúng"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Link có tính đa nghĩa trong không gian siêu liên kết."
-    },
-    {
-        "q": "Trong trình duyệt Internet Explorer, để lưu một bức ảnh về máy tính, ta làm như thế nào?",
-        "options": [
-            "Kích đúp vào ảnh rồi chọn Download",
-            "Nhấn chuột phải vào ảnh, chọn Save picture as",
-            "Chọn Tools/ Save picture as",
-            "Hai cách a và c đều đúng"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Thao tác căn bản chuẩn của hầu hết các web browser."
-    },
-    {
-        "q": "Để soạn một thư điện tử mới, bạn chọn nút nào?",
-        "options": [
-            "Compose",
-            "Attachment",
-            "Check Mail",
-            "Reply"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Compose khởi tạo cửa sổ soạn mail mới."
-    },
-    {
-        "q": "Đâu không phải là lợi ích chủ yếu của dịch vụ tin nhắn tức thời?",
-        "options": [
-            "Truyền thông thời gian thực",
-            "Biết rõ người liên hệ đang trực tuyến hay không",
-            "Kho lưu trữ dữ liệu lớn",
-            "Gửi dữ liệu nhanh chóng"
-        ],
-        "correct": 2,
-        "exp": "Đáp án đúng là C. Ứng dụng chat không được tối ưu để lưu trữ Data vĩnh viễn quy mô lớn."
-    },
-    {
-        "q": "Đây là cụm từ viết tắt của địa chỉ tài nguyên trên Internet?",
-        "options": [
-            "URL (Uniform Resource Locator)",
-            "URL (Universe Resource Internet)",
-            "URL (Uniform Resource Location)",
-            "Tất cả các đáp án đều đúng"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Viết tắt chuẩn quốc tế chỉ bộ định vị tài nguyên thống nhất."
-    },
-    {
-        "q": "Nút Forward trên thanh công cụ của trình duyệt Web có tác dụng gì?",
-        "options": [
-            "Đi đến cửa sổ trước đó",
-            "Đi đến trang Web tiếp theo",
-            "Đi đến màn hình trước đó",
-            "Quay lại trang Web trước đó"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Nút Forward (Tiến) đảo ngược thao tác của nút Back."
-    },
-    {
-        "q": "Để trả lời ngay thư điện tử khi đang xem thư, bạn chọn nút nào?",
-        "options": [
-            "Reply",
-            "Attachment",
-            "Check Mail",
-            "Compose"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Reply phản hồi trực tiếp người gửi."
-    },
-    {
-        "q": "Đâu là định nghĩa siêu liên kết?",
-        "options": [
-            "Dùng liên kết các tài nguyên trên Internet qua các đường link trên trang Web",
-            "Dùng tải các ứng dụng trên Internet xuống",
-            "Dùng liên kết với các tài liệu trên Internet",
-            "Dùng liên kết các đường dẫn trong một website"
-        ],
-        "correct": 0,
-        "exp": "Đáp án đúng là A. Định nghĩa chính quy của Siêu liên kết (Hyperlink)."
-    },
-    {
-        "q": "Trong Internet Explorer phiên bản 10 hoặc mới hơn, phím tắt để thêm một Tab?",
-        "options": [
-            "Ctrl+N",
-            "Alt+N",
-            "Alt+H",
-            "Ctrl+T"
-        ],
-        "correct": 3,
-        "exp": "Đáp án đúng là D. Ctrl + T (New Tab) là phím tắt phổ thông."
-    },
-    {
-        "q": "Để quay lại trang web trước đó, ngoài nút “Back”, ta có thể dùng phím nào?",
-        "options": [
-            "Ctrl+T",
-            "Backspace",
-            "Alt + T",
-            "Alt+F3"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Backspace hoạt động tương đương lệnh Back của Browser."
-    },
-    {
-        "q": "Khi nhấp lệnh in 1 trang web các thông tin hiển thị như tên trang web, số trang hiện tại, địa chỉ trang web, ngày tháng được điều chỉnh tại mục nào của hộp thoại?",
-        "options": [
-            "Paper",
-            "Headers and Footers",
-            "Orientation",
-            "Margin"
-        ],
-        "correct": 1,
-        "exp": "Đáp án đúng là B. Thông tin tiêu đề (Header) và chân trang (Footer) chứa các dữ liệu này."
-    }
-];
-// ===========================================================================
-// === PHẦN 2: LOGIC XỬ LÝ HỆ THỐNG ===
-// ===========================================================================
+        // Exam Active Configuration Settings
+        let examConfig = {
+            timePerQuestion: 45,
+            numQuestions: 40,
+            totalExamTimeMinutes: 45
+        };
 
-let quizBank = [];
-let currentIndex = 0;
-let score = 0;
-let timer;
-let timeRemaining = 60;
-let errorList = [];
+        // Exam Runtime States
+        let quizBank = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let singleQuestionTimer = null;
+        let totalExamTimer = null;
+        let timeRemainingQuestion = 45;
+        let totalExamSecondsLeft = 2700;
+        let errorList = [];
+        let currentShuffledOptions = [];
+        let correctOptionIndex = 0;
 
-function startApp() {
-    document.getElementById('start-screen').classList.add('hidden');
-    document.getElementById('quiz-screen').classList.remove('hidden');
-    quizBank = [...questionBank].sort(() => Math.random() - 0.5); // Xáo trộn ngẫu nhiên
-    renderQuestion();
-}
+        window.onload = () => {
+            setupDragAndDrop();
+            checkApiKeyStatus();
+            loadDefaultSample();
+        };
 
-function renderQuestion() {
-    if(currentIndex >= quizBank.length) return showFinalResult();
-    
-    resetQuestionUI();
-    const currentQ = quizBank[currentIndex];
-    
-    document.getElementById('q-current').innerText = currentIndex + 1;
-    document.getElementById('q-total').innerText = quizBank.length;
-    document.getElementById('question-text').innerText = currentQ.q;
-    
-    const list = document.getElementById('options-list');
-    currentQ.options.forEach((txt, idx) => {
-        const b = document.createElement('button');
-        b.className = 'option';
-        b.innerText = txt;
-        b.onclick = () => validateAnswer(idx);
-        list.appendChild(b);
-    });
+        // Step Navigation Switcher
+        function switchStep(stepNum) {
+            const s1 = document.getElementById('step-1');
+            const s2 = document.getElementById('step-2');
+            const s3 = document.getElementById('step-3');
 
-    runTimer();
-}
+            s1.classList.add('hidden');
+            s2.classList.add('hidden');
+            s3.classList.add('hidden');
 
-function runTimer() {
-    timeRemaining = 45;
-    document.getElementById('time-left').innerText = timeRemaining;
-    timer = setInterval(() => {
-        timeRemaining--;
-        document.getElementById('time-left').innerText = timeRemaining;
-        if(timeRemaining <= 0) {
-            clearInterval(timer);
-            validateAnswer(-1); // Hết giờ tính là sai
+            document.getElementById('tabBtnStep1').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 flex items-center gap-1.5 transition-all";
+            document.getElementById('tabBtnStep2').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 text-slate-300 flex items-center gap-1.5 transition-all";
+
+            if (stepNum === 1) {
+                s1.classList.remove('hidden');
+                document.getElementById('tabBtnStep1').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 text-white flex items-center gap-1.5 transition-all";
+            } else if (stepNum === 2) {
+                if (questionBank.length === 0) {
+                    showToast("Chưa có câu hỏi trong ngân hàng! Vui lòng trích xuất trước.", "warning");
+                    s1.classList.remove('hidden');
+                    return;
+                }
+                s2.classList.remove('hidden');
+                document.getElementById('tabBtnStep2').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 text-white flex items-center gap-1.5 transition-all";
+            } else if (stepNum === 3) {
+                s3.classList.remove('hidden');
+                document.getElementById('tabBtnStep2').className = "px-3 py-1.5 text-xs font-semibold rounded-lg bg-sky-600 text-white flex items-center gap-1.5 transition-all";
+            }
         }
-    }, 1000);
-}
 
-function validateAnswer(userPick) {
-    clearInterval(timer);
-    const qData = quizBank[currentIndex];
-    const btns = document.querySelectorAll('.option');
-    
-    btns.forEach(btn => btn.style.pointerEvents = 'none');
+        function goToExamConfig() {
+            switchStep(2);
+        }
 
-    if(userPick === qData.correct) {
-        score++;
-        document.getElementById('score-count').innerText = score;
-        if(userPick !== -1) btns[userPick].classList.add('correct');
-    } else {
-        if(userPick !== -1) btns[userPick].classList.add('wrong');
-        btns[qData.correct].classList.add('correct');
-        errorList.push(qData); // Lưu vào danh sách sai để hỏi lại
-	document.getElementById('wrong-count').innerText = errorList.length;
-    }
+        // API Key Modal Operations
+        function checkApiKeyStatus() {
+            const warning = document.getElementById('keyWarning');
+            if (geminiApiKey) warning.classList.add('hidden');
+            else warning.classList.remove('hidden');
+        }
 
-    document.getElementById('exp-area').innerHTML = `<b>Giải thích:</b> ${qData.exp}`;
-    document.getElementById('exp-area').classList.remove('hidden');
-    document.getElementById('btn-next').classList.remove('hidden');
-}
+        function openApiKeyModal() {
+            document.getElementById('apiKeyInput').value = geminiApiKey;
+            document.getElementById('apiKeyModal').classList.remove('hidden');
+        }
 
-function handleNext() {
-    currentIndex++;
-    renderQuestion();
-}
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').classList.add('hidden');
+        }
 
-function resetQuestionUI() {
-    document.getElementById('options-list').innerHTML = '';
-    document.getElementById('exp-area').classList.add('hidden');
-    document.getElementById('btn-next').classList.add('hidden');
-}
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            geminiApiKey = key;
+            localStorage.setItem('GEMINI_API_KEY', key);
+            checkApiKeyStatus();
+            closeApiKeyModal();
+            showToast("Đã lưu Gemini API Key thành công!", "success");
+        }
 
-function showFinalResult() {
-    document.getElementById('quiz-screen').classList.add('hidden');
-    document.getElementById('result-screen').classList.remove('hidden');
-    document.getElementById('final-stats').innerText = `${score} / ${quizBank.length}`;
-    
-    const info = document.getElementById('fail-info');
-    if(errorList.length > 0) {
-        info.innerText = `Bạn còn ${errorList.length} câu chưa đạt. Hệ thống sẽ ưu tiên hỏi lại các câu này!`;
-    } else {
-        info.innerText = "Tuyệt vời! Bạn đã hoàn thành xuất sắc tất cả câu hỏi.";
-    }
-}
+        // File Drag and Drop Handlers
+        function setupDragAndDrop() {
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('fileInput');
 
-function restartWithErrors() {
-    if(errorList.length === 0) {
-        alert("Chúc mừng! Bạn đã thuộc hết bài. Hệ thống sẽ khởi động lại toàn bộ.");
-        location.reload();
-        return;
-    }
-    quizBank = [...errorList].sort(() => Math.random() - 0.5);
-    errorList = [];
-    currentIndex = 0;
-    score = 0;
-    document.getElementById('score-count').innerText = "0";
-    document.getElementById('wrong-count').innerText = "0";
-    document.getElementById('result-screen').classList.add('hidden');
-    document.getElementById('quiz-screen').classList.remove('hidden');
-    renderQuestion();
-}
-</script>
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
+                dropzone.addEventListener(e, ev => { ev.preventDefault(); ev.stopPropagation(); }, false);
+            });
+
+            ['dragenter', 'dragover'].forEach(e => dropzone.addEventListener(e, () => dropzone.classList.add('drag-active'), false));
+            ['dragleave', 'drop'].forEach(e => dropzone.addEventListener(e, () => dropzone.classList.remove('drag-active'), false));
+
+            dropzone.addEventListener('drop', e => handleFiles(e.dataTransfer.files), false);
+            fileInput.addEventListener('change', e => handleFiles(e.target.files));
+        }
+
+        function handleFiles(files) {
+            if (!files || files.length === 0) return;
+            const file = files[0];
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileInfo').classList.remove('hidden');
+
+            const ext = file.name.split('.').pop().toLowerCase();
+
+            if (ext === 'txt' || ext === 'json') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (ext === 'json') {
+                        try {
+                            const parsed = JSON.parse(e.target.result);
+                            if (Array.isArray(parsed)) {
+                                questionBank = parsed;
+                                renderExtractedQuestions();
+                                showToast("Đã nhập thành công file JSON ngân hàng câu hỏi!", "success");
+                                return;
+                            }
+                        } catch (err) {}
+                    }
+                    document.getElementById('rawTextArea').value = e.target.result;
+                    showToast("Đã đọc file văn bản!", "success");
+                };
+                reader.readAsText(file);
+            } else if (ext === 'docx') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    mammoth.extractRawText({ arrayBuffer: e.target.result })
+                        .then(res => {
+                            document.getElementById('rawTextArea').value = res.value;
+                            showToast("Đã trích xuất xong từ file Word!", "success");
+                        });
+                };
+                reader.readAsArrayBuffer(file);
+            } else if (ext === 'pdf') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const typedarray = new Uint8Array(e.target.result);
+                    pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+                        let totalPages = pdf.numPages;
+                        let countPromises = [];
+                        for (let i = 1; i <= totalPages; i++) {
+                            countPromises.push(pdf.getPage(i).then(page => {
+                                return page.getTextContent().then(textContent => {
+                                    return textContent.items.map(item => item.str).join(' ');
+                                });
+                            }));
+                        }
+                        Promise.all(countPromises).then(pagesText => {
+                            document.getElementById('rawTextArea').value = pagesText.join('\n\n');
+                            showToast("Đã đọc xong toàn bộ file PDF!", "success");
+                        });
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        // Gemini AI Question Extractor
+        async function extractQuestionsWithAI() {
+            const rawText = document.getElementById('rawTextArea').value.trim();
+            if (!rawText) {
+                showToast("Vui lòng tải file hoặc dán văn bản trước!", "warning");
+                return;
+            }
+
+            const targetCount = parseInt(document.getElementById('selectNumQuestions').value);
+            document.getElementById('targetQCount').innerText = targetCount;
+
+            document.getElementById('aiLoading').classList.remove('hidden');
+            document.getElementById('previewContainer').classList.add('hidden');
+
+            const systemPrompt = `Bạn là hệ thống tạo câu hỏi khảo thí chuyên nghiệp. Nhiệm vụ của bạn là đọc kĩ văn bản đầu vào và sinh ra CHÍNH XÁC ${targetCount} câu hỏi trắc nghiệm khách quan với 4 lựa chọn (A, B, C, D) kèm giải thích chi tiết.
+Đầu ra PHẢI LÀ MỘT MẢNG JSON hợp lệ. Chuẩn thuộc tính mỗi object câu hỏi:
+- "q": Nội dung câu hỏi
+- "options": Mảng 4 chuỗi chứa [Lựa chọn 1, Lựa chọn 2, Lựa chọn 3, Lựa chọn 4]
+- "correct": Chỉ số số nguyên của đáp án đúng trong mảng options (0 cho A, 1 cho B, 2 cho C, 3 cho D)
+- "exp": Lời giải thích ngắn gọn lý do chọn đáp án đúng.`;
+
+            const userPrompt = `Đọc văn bản sau và tạo ${targetCount} câu hỏi trắc nghiệm theo đúng định dạng JSON yêu cầu:\n\n"""\n${rawText}\n"""`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                q: { type: "STRING" },
+                                options: { type: "ARRAY", items: { type: "STRING" } },
+                                correct: { type: "NUMBER" },
+                                exp: { type: "STRING" }
+                            },
+                            required: ["q", "options", "correct", "exp"]
+                        }
+                    }
+                }
+            };
+
+            const apiKeyToUse = geminiApiKey || "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKeyToUse}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errRes = await response.json().catch(() => ({}));
+                    throw new Error(errRes.error?.message || `Lỗi HTTP: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const jsonStr = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (!jsonStr) throw new Error("Không nhận được dữ liệu JSON từ AI");
+
+                questionBank = JSON.parse(jsonStr);
+
+                document.getElementById('aiLoading').classList.add('hidden');
+                document.getElementById('previewContainer').classList.remove('hidden');
+
+                renderExtractedQuestions();
+                showToast(`Đã dùng AI trích xuất thành công ${questionBank.length} câu hỏi!`, "success");
+
+            } catch (err) {
+                document.getElementById('aiLoading').classList.add('hidden');
+                document.getElementById('previewContainer').classList.remove('hidden');
+                showToast("Lỗi kết nối AI: " + err.message, "error");
+                if (!geminiApiKey) openApiKeyModal();
+            }
+        }
+
+        // Fallback RegEx Parser for standard formatted Q&A
+        function parseRegExFallback() {
+            const text = document.getElementById('rawTextArea').value.trim();
+            if (!text) {
+                showToast("Vui lòng dán văn bản!", "warning");
+                return;
+            }
+
+            const blocks = text.split(/\n\s*\n/).filter(b => b.trim().length > 0);
+            let parsedList = [];
+
+            blocks.forEach((block) => {
+                const lines = block.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                if (lines.length >= 2) {
+                    let qText = lines[0].replace(/^(Câu\s*\d+|Question\s*\d+|\d+)[\.\:\)]\s*/i, '');
+                    let opts = [];
+                    let correctIdx = 0;
+                    let exp = "Đáp án theo tài liệu trích xuất.";
+
+                    for (let i = 1; i < lines.length; i++) {
+                        let l = lines[i];
+                        if (l.match(/^[\*]?\s*[A-D][\.\:\)]/i)) {
+                            if (l.startsWith('*')) correctIdx = opts.length;
+                            opts.push(l.replace(/^[\*]?\s*[A-D][\.\:\)]\s*/i, ''));
+                        } else if (l.match(/^(Đáp án|Ans)[\:\s]*([A-D])/i)) {
+                            let m = l.match(/([A-D])/i);
+                            if (m) correctIdx = m[1].toUpperCase().charCodeAt(0) - 65;
+                        } else if (l.match(/^(Giải thích|Exp)[\:\s]*(.*)/i)) {
+                            exp = l.replace(/^(Giải thích|Exp)[\:\s]*/i, '');
+                        }
+                    }
+
+                    if (opts.length === 0) {
+                        opts = ["Lựa chọn A", "Lựa chọn B", "Lựa chọn C", "Lựa chọn D"];
+                    }
+
+                    parsedList.push({
+                        q: qText,
+                        options: opts,
+                        correct: correctIdx,
+                        exp: exp
+                    });
+                }
+            });
+
+            if (parsedList.length > 0) {
+                questionBank = parsedList;
+                renderExtractedQuestions();
+                showToast(`Đã bóc tách thủ công ${parsedList.length} câu hỏi!`, "success");
+            } else {
+                showToast("Không tìm thấy cấu trúc câu hỏi có sẵn!", "warning");
+            }
+        }
+
+        // Render Question Editor
+        function renderExtractedQuestions() {
+            const container = document.getElementById('questionsEditor');
+            const launchBtn = document.getElementById('btnLaunchQuiz');
+            const countTag = document.getElementById('extractedCount');
+            const bankBadge = document.getElementById('bankBadge');
+
+            countTag.innerText = questionBank.length;
+            bankBadge.innerText = `${questionBank.length} câu`;
+
+            if (questionBank.length === 0) {
+                container.innerHTML = `
+                    <div id="emptyListNotice" class="py-12 text-center text-slate-400">
+                        <i class="fa-solid fa-folder-open text-4xl mb-2 text-slate-300"></i>
+                        <p class="text-xs">Chưa có câu hỏi nào. Hãy tải file hoặc dán văn bản rồi bấm nút trích xuất bằng AI.</p>
+                    </div>`;
+                launchBtn.disabled = true;
+                return;
+            }
+
+            launchBtn.disabled = false;
+            container.innerHTML = '';
+
+            questionBank.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs space-y-2.5 relative";
+
+                let optionsHTML = '';
+                item.options.forEach((opt, oIdx) => {
+                    const isCorrect = item.correct === oIdx;
+                    optionsHTML += `
+                        <div class="flex items-center gap-2">
+                            <input type="radio" name="correct_${index}" ${isCorrect ? 'checked' : ''} onchange="setQuestionCorrect(${index}, ${oIdx})" class="text-sky-600">
+                            <span class="font-bold text-slate-500">${String.fromCharCode(65 + oIdx)}.</span>
+                            <input type="text" value="${escapeHtml(opt)}" oninput="updateOptionVal(${index}, ${oIdx}, this.value)" class="flex-1 bg-white border ${isCorrect ? 'border-emerald-500 bg-emerald-50/50 font-bold text-emerald-800' : 'border-slate-200'} rounded px-2.5 py-1 outline-none">
+                        </div>
+                    `;
+                });
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-slate-700">
+                        <span>Câu ${index + 1}</span>
+                        <button onclick="removeQuestion(${index})" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <textarea oninput="updateQuestionVal(${index}, this.value)" rows="2" class="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-slate-800 outline-none">${escapeHtml(item.q)}</textarea>
+                    <div class="pl-2 space-y-1.5">${optionsHTML}</div>
+                    <div class="text-[11px] text-slate-500 flex items-center gap-1.5 pt-1">
+                        <i class="fa-regular fa-lightbulb text-amber-500"></i>
+                        <input type="text" value="${escapeHtml(item.exp || '')}" oninput="updateExpVal(${index}, this.value)" placeholder="Lời giải thích..." class="flex-1 bg-transparent border-b border-slate-200 outline-none text-slate-600">
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function setQuestionCorrect(qIdx, oIdx) { questionBank[qIdx].correct = oIdx; renderExtractedQuestions(); }
+        function updateQuestionVal(qIdx, val) { questionBank[qIdx].q = val; }
+        function updateOptionVal(qIdx, oIdx, val) { questionBank[qIdx].options[oIdx] = val; }
+        function updateExpVal(qIdx, val) { questionBank[qIdx].exp = val; }
+        function removeQuestion(qIdx) { questionBank.splice(qIdx, 1); renderExtractedQuestions(); }
+
+        // Load Default Questions Sample
+        function loadDefaultSample() {
+            questionBank = [
+                {
+                    "q": "Phần cứng máy tính là gì?",
+                    "options": [
+                        "Các bộ phận cụ thể của máy tính về mặt vật lý như màn hình, chuột, bàn phím,...",
+                        "Cấu tạo của phần mềm về mặt logic",
+                        "Cấu tạo của phần mềm về mặt vật lý",
+                        "Cả 3 phương án đều sai"
+                    ],
+                    "correct": 0,
+                    "exp": "Đáp án đúng là A. Phần cứng là các thiết bị, linh kiện có thể chạm vào được về mặt vật lý."
+                },
+                {
+                    "q": "Kể tên các loại bộ nhớ trong?",
+                    "options": [
+                        "Bộ nhớ truy cập ngẫu nhiên (RAM)",
+                        "Bộ nhớ chỉ đọc (ROM)",
+                        "Đĩa cứng (Hard disk)",
+                        "Bộ nhớ truy cập ngẫu nhiên (RAM) và bộ nhớ chỉ đọc (ROM)"
+                    ],
+                    "correct": 3,
+                    "exp": "Đáp án đúng là D. Bộ nhớ trong của máy tính bao gồm cả RAM và ROM."
+                },
+                {
+                    "q": "Các thiết bị: màn hình, loa, máy in, thuộc khối chức năng nào?",
+                    "options": [
+                        "Thiết bị nhập",
+                        "Thiết bị xuất",
+                        "Khối xử lý",
+                        "Các thiết bị lưu trữ"
+                    ],
+                    "correct": 1,
+                    "exp": "Đáp án đúng là B. Đây đều là các thiết bị dùng để xuất thông tin ra bên ngoài cho người dùng."
+                }
+            ];
+            renderExtractedQuestions();
+        }
+
+        // ===========================================================================
+        // === STEP 2 & STEP 3 LOGIC: MANDATORY CONFIG & EXAM ENGINE ===
+        // ===========================================================================
+
+        function validateAndStartExam() {
+            // Check mandatory selection values
+            const timeQRadio = document.querySelector('input[name="timePerQuestion"]:checked');
+            const numQRadio = document.querySelector('input[name="numExamQuestions"]:checked');
+            const totalTimeRadio = document.querySelector('input[name="totalExamTime"]:checked');
+
+            if (!timeQRadio || !numQRadio || !totalTimeRadio) {
+                showToast("Vui lòng chọn đầy đủ các thông số bắt buộc (*)", "warning");
+                return;
+            }
+
+            examConfig.timePerQuestion = parseInt(timeQRadio.value);
+            examConfig.totalExamTimeMinutes = parseInt(totalTimeRadio.value);
+
+            if (numQRadio.value === 'ALL') {
+                examConfig.numQuestions = questionBank.length;
+            } else {
+                examConfig.numQuestions = parseInt(numQRadio.value);
+            }
+
+            // Shuffle and prepare quiz array
+            let shuffledBank = [...questionBank].sort(() => Math.random() - 0.5);
+            quizBank = shuffledBank.slice(0, Math.min(examConfig.numQuestions, shuffledBank.length));
+
+            currentQuestionIndex = 0;
+            score = 0;
+            errorList = [];
+            document.getElementById('score-count').innerText = "0";
+            document.getElementById('wrong-count').innerText = "0";
+
+            // Switch to Step 3 Playing View
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            switchStep(3);
+
+            // Start Total Exam Countdown Timer
+            startTotalExamTimer();
+
+            // Render First Question
+            renderQuestion();
+        }
+
+        function startTotalExamTimer() {
+            if (totalExamTimer) clearInterval(totalExamTimer);
+            totalExamSecondsLeft = examConfig.totalExamTimeMinutes * 60;
+            updateTotalTimeDisplay();
+
+            totalExamTimer = setInterval(() => {
+                totalExamSecondsLeft--;
+                updateTotalTimeDisplay();
+
+                if (totalExamSecondsLeft <= 0) {
+                    clearInterval(totalExamTimer);
+                    showToast("Đã hết tổng thời gian làm bài thi!", "warning");
+                    showFinalResult();
+                }
+            }, 1000);
+        }
+
+        function updateTotalTimeDisplay() {
+            const m = Math.floor(totalExamSecondsLeft / 60);
+            const s = totalExamSecondsLeft % 60;
+            document.getElementById('total-time-left').innerText = `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+        }
+
+        function renderQuestion() {
+            if (currentQuestionIndex >= quizBank.length) {
+                if (totalExamTimer) clearInterval(totalExamTimer);
+                return showFinalResult();
+            }
+
+            resetQuestionUI();
+            const currentQ = quizBank[currentQuestionIndex];
+
+            document.getElementById('q-current').innerText = currentQuestionIndex + 1;
+            document.getElementById('q-total').innerText = quizBank.length;
+            document.getElementById('question-text').innerText = currentQ.q;
+
+            // Shuffle Options Positions
+            const originalOptions = currentQ.options;
+            const correctText = originalOptions[currentQ.correct];
+
+            let shuffledIndices = originalOptions.map((_, idx) => idx).sort(() => Math.random() - 0.5);
+            currentShuffledOptions = shuffledIndices.map(idx => originalOptions[idx]);
+            correctOptionIndex = currentShuffledOptions.indexOf(correctText);
+
+            const list = document.getElementById('options-list');
+            currentShuffledOptions.forEach((txt, idx) => {
+                const b = document.createElement('button');
+                b.className = 'option-btn';
+                b.innerText = `${String.fromCharCode(65 + idx)}. ${txt}`;
+                b.onclick = () => validateAnswer(idx);
+                list.appendChild(b);
+            });
+
+            runSingleQuestionTimer();
+        }
+
+        function runSingleQuestionTimer() {
+            timeRemainingQuestion = examConfig.timePerQuestion;
+            document.getElementById('time-left').innerText = timeRemainingQuestion;
+            if (singleQuestionTimer) clearInterval(singleQuestionTimer);
+
+            singleQuestionTimer = setInterval(() => {
+                timeRemainingQuestion--;
+                document.getElementById('time-left').innerText = timeRemainingQuestion;
+                if (timeRemainingQuestion <= 0) {
+                    clearInterval(singleQuestionTimer);
+                    validateAnswer(-1); // Time expired for question
+                }
+            }, 1000);
+        }
+
+        function validateAnswer(userPick) {
+            if (singleQuestionTimer) clearInterval(singleQuestionTimer);
+            const qData = quizBank[currentQuestionIndex];
+            const btns = document.querySelectorAll('.option-btn');
+
+            btns.forEach(btn => btn.style.pointerEvents = 'none');
+
+            if (userPick === correctOptionIndex) {
+                score++;
+                document.getElementById('score-count').innerText = score;
+                if (userPick !== -1) btns[userPick].classList.add('correct');
+            } else {
+                if (userPick !== -1) btns[userPick].classList.add('wrong');
+                btns[correctOptionIndex].classList.add('correct');
+                errorList.push(qData);
+                document.getElementById('wrong-count').innerText = errorList.length;
+            }
+
+            document.getElementById('exp-area').innerHTML = `<b>Giải thích:</b> ${qData.exp || 'Không có giải thích chi tiết.'}`;
+            document.getElementById('exp-area').classList.remove('hidden');
+            document.getElementById('btn-next').classList.remove('hidden');
+        }
+
+        function handleNext() {
+            currentQuestionIndex++;
+            renderQuestion();
+        }
+
+        function resetQuestionUI() {
+            document.getElementById('options-list').innerHTML = '';
+            document.getElementById('exp-area').classList.add('hidden');
+            document.getElementById('btn-next').classList.add('hidden');
+        }
+
+        function showFinalResult() {
+            if (singleQuestionTimer) clearInterval(singleQuestionTimer);
+            if (totalExamTimer) clearInterval(totalExamTimer);
+
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-stats').innerText = `${score} / ${quizBank.length}`;
+
+            const info = document.getElementById('fail-info');
+            if (errorList.length > 0) {
+                info.innerText = `Bạn còn ${errorList.length} câu chưa đạt. Bạn có thể ôn lại các câu này!`;
+            } else {
+                info.innerText = "Xuất sắc! Bạn đã làm đúng toàn bộ câu hỏi trong lượt này.";
+            }
+        }
+
+        function restartWithErrors() {
+            if (errorList.length === 0) {
+                showToast("Bạn đã làm đúng tất cả các câu!", "success");
+                goToExamConfig();
+                return;
+            }
+            quizBank = [...errorList].sort(() => Math.random() - 0.5);
+            errorList = [];
+            currentQuestionIndex = 0;
+            score = 0;
+            document.getElementById('score-count').innerText = "0";
+            document.getElementById('wrong-count').innerText = "0";
+
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+
+            startTotalExamTimer();
+            renderQuestion();
+        }
+
+        // Helper Utilities
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function showToast(msg, type = "info") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.textContent = msg;
+
+            if (type === "success") {
+                toastIcon.className = "fa-solid fa-circle-check text-emerald-400 text-base";
+            } else if (type === "warning") {
+                toastIcon.className = "fa-solid fa-triangle-exclamation text-amber-400 text-base";
+            } else if (type === "error") {
+                toastIcon.className = "fa-solid fa-circle-xmark text-rose-400 text-base";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-info text-sky-400 text-base";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
 </body>
 </html>
